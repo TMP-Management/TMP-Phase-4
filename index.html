@@ -89,7 +89,7 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-const TIME_LIMIT = 3000; // 50 minutes in seconds
+const TIME_LIMIT = 3000; // 50 minutes (3000 seconds)
 let current = 0; let answers = []; let timedOut = []; let timerInterval = null; let secondsLeft = TIME_LIMIT;
 let examStarted = false; let typeInterval = null;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
@@ -230,7 +230,7 @@ function startTimer() {
         const mins = Math.floor(secondsLeft / 60); const secs = secondsLeft % 60;
         timerEl.innerText = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
         
-        // Sets danger alert at 5 minutes remaining
+        // Danger alert triggers at 5 minutes remaining (300 seconds)
         if (secondsLeft <= 300) timerEl.classList.add('danger');
         
         if (secondsLeft <= 0) {
