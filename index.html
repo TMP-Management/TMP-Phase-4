@@ -73,7 +73,7 @@
   </div>
   <div class="meta-row">
     <div class="progress" id="progress">Locked</div>
-    <div class="timer" id="timer">⏱ 2:00</div>
+    <div class="timer" id="timer">⏱ 50:00</div>
   </div>
   <div class="seg-tracker" id="segTracker"></div>
   <div id="question" class="question-card">
@@ -89,7 +89,7 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-const TIME_LIMIT = 120;
+const TIME_LIMIT = 3000; // 50 minutes in seconds
 let current = 0; let answers = []; let timedOut = []; let timerInterval = null; let secondsLeft = TIME_LIMIT;
 let examStarted = false; let typeInterval = null;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
@@ -150,7 +150,7 @@ function showInstructions() {
             <div style="font-size:13px; color:#b0c8d4; line-height:1.75; margin-bottom:16px;">You've made it to <span style="color:#00dcff; font-weight:600;">Phase 4</span> of The Management Program. This written assessment is designed to evaluate the knowledge and judgment you've developed throughout your time.</div>
             <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
                 <div class="info-pill cyan">📖 <span style="color:#fff; font-weight:500;">Open Book</span> — You may reference any materials during this exam.</div>
-                <div class="info-pill pink">⏱ <span style="color:#fff; font-weight:500;">2 Minutes Per Question</span> — Each question has a strict time limit.</div>
+                <div class="info-pill pink">⏱ <span style="color:#fff; font-weight:500;">50 Minutes Per Question</span> — Each question has a strict time limit.</div>
                 <div class="info-pill cyan">📝 <span style="color:#fff; font-weight:500;">Final Submission</span> — Review your answers carefully; they cannot be edited once submitted.</div>
             </div>
             <button class="action-btn" onclick="startExam()">Begin Examination</button>
@@ -223,13 +223,15 @@ function loadQuestion(instant) {
 function startTimer() {
     secondsLeft = TIME_LIMIT;
     const timerEl = document.getElementById('timer');
-    timerEl.innerText = `⏱ 2:00`;
+    timerEl.innerText = `⏱ 50:00`;
     timerEl.classList.remove('danger');
     timerInterval = setInterval(() => {
         secondsLeft--;
         const mins = Math.floor(secondsLeft / 60); const secs = secondsLeft % 60;
         timerEl.innerText = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
-        if (secondsLeft <= 30) timerEl.classList.add('danger');
+        
+        // Sets danger alert at 5 minutes remaining
+        if (secondsLeft <= 300) timerEl.classList.add('danger');
         
         if (secondsLeft <= 0) {
             clearInterval(timerInterval);
