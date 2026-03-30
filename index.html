@@ -89,14 +89,12 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-const TIME_LIMIT = 3000; // 50 minutes total
+const TIME_LIMIT = 3000;
 const SAVE_KEY_PREFIX = "tmp_exam_progress_";
 
 let current = 0; let answers = []; let timedOut = []; let timerInterval = null; let secondsLeft = TIME_LIMIT;
 let examStarted = false; let typeInterval = null; let autoSaveInterval = null;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
-
-// ── Progress persistence (keyed by Discord ID so different users on the same browser are separate) ──
 
 function saveKey() { return SAVE_KEY_PREFIX + (window.dUser?.id || 'unknown'); }
 
@@ -118,8 +116,6 @@ function loadProgress() {
 function clearProgress() {
     try { localStorage.removeItem(saveKey()); } catch(e) {}
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 
 function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 
@@ -156,8 +152,41 @@ function loginDiscord() {
     window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`;
 }
 
-function showInstructions() {
+function formatCooldown(ms) {
+    const totalSecs = Math.ceil(ms / 1000);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+}
+
+async function showInstructions() {
     document.getElementById('notice').innerHTML = `<span class="glow-text">Discord Verified</span><br>${window.dUser.username} · <span style="color:#ff69b4; font-family:monospace;">${window.dUser.id}</span>`;
+    document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:13px;">Checking eligibility...</div>`;
+
+    const cooldownRes = await fetch(WORKER_URL, {
+        method: "POST",
+        body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id })
+    });
+    const cooldownData = await cooldownRes.json();
+
+    if (cooldownData.onCooldown) {
+        document.getElementById('question').innerHTML = `
+            <div style="text-align:center;">
+                <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#ff3a3a; margin-bottom:10px;">⏳ COOLDOWN ACTIVE</div>
+                <div style="font-size:13px; color:#99b4c0; line-height:1.7;">You have already submitted an exam recently.<br>You may retake in <span style="color:#ff69b4; font-weight:700;" id="cdTimer">${formatCooldown(cooldownData.remainingMs)}</span>.</div>
+            </div>`;
+        let remaining = cooldownData.remainingMs;
+        const cdEl = document.getElementById('cdTimer');
+        const cdInterval = setInterval(() => {
+            remaining -= 1000;
+            if (remaining <= 0) { clearInterval(cdInterval); cdEl.innerText = "now — please refresh."; return; }
+            cdEl.innerText = formatCooldown(remaining);
+        }, 1000);
+        return;
+    }
 
     const saved = loadProgress();
     const hasSave = saved && saved.questions && saved.questions.length > 0 && saved.current > 0;
@@ -321,16 +350,15 @@ function showReview() {
     transitionTo(() => { document.getElementById('question').innerHTML = html; });
 }
 
-function finalSubmit() {
+async function finalSubmit() {
     examStarted = false;
-    clearProgress();
     transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text">Transmitting Answers...</div>`; });
     let content = `**Roblox Username**: ${window.rUser}\n**Discord User**: ${window.dUser?.username}\n**Discord ID**: ${window.dUser?.id}\n\n`;
     mainQuestions.forEach((q, i) => {
         const status = timedOut[i] ? " [TIMED OUT]" : "";
         content += `**Q${i+1}${status}:** ${q}\n> ${answers[i]}\n\n`;
     });
-    fetch(WORKER_URL, {
+    const res = await fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
             username: window.rUser, content, rank: "N/A",
@@ -338,7 +366,13 @@ function finalSubmit() {
             discordId: window.dUser?.id,
             discordUsername: window.dUser?.username
         })
-    }).then(() => { transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:24px;">✅ Submission Received</div>`; }); });
+    });
+    if (res.status === 429) {
+        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">You have already submitted an exam in the last 24 hours.</div>`; });
+        return;
+    }
+    clearProgress();
+    transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:24px;">✅ Submission Received</div>`; });
 }
 </script>
 </body>
