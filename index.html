@@ -89,7 +89,7 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-const TIME_LIMIT = 3000; // 50 minutes (3000 seconds)
+const TIME_LIMIT = 3000; // 50 minutes (3000 seconds) — global for entire exam
 let current = 0; let answers = []; let timedOut = []; let timerInterval = null; let secondsLeft = TIME_LIMIT;
 let examStarted = false; let typeInterval = null;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
@@ -150,7 +150,7 @@ function showInstructions() {
             <div style="font-size:13px; color:#b0c8d4; line-height:1.75; margin-bottom:16px;">You've made it to <span style="color:#00dcff; font-weight:600;">Phase 4</span> of The Management Program. This written assessment is designed to evaluate the knowledge and judgment you've developed throughout your time.</div>
             <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
                 <div class="info-pill cyan">📖 <span style="color:#fff; font-weight:500;">Open Book</span> — You may reference any materials during this exam.</div>
-                <div class="info-pill pink">⏱ <span style="color:#fff; font-weight:500;">50 Minutes Per Question</span> — Each question has a strict time limit.</div>
+                <div class="info-pill pink">⏱ <span style="color:#fff; font-weight:500;">50 Minutes Total</span> — You have 50 minutes to complete the entire exam.</div>
                 <div class="info-pill cyan">📝 <span style="color:#fff; font-weight:500;">Final Submission</span> — Review your answers carefully; they cannot be edited once submitted.</div>
             </div>
             <button class="action-btn" onclick="startExam()">Begin Examination</button>
@@ -183,7 +183,43 @@ async function startExam() {
     buildSegTracker(mainQuestions.length);
     document.getElementById('notice').style.display = 'none';
     document.getElementById('input-area').style.display = 'flex';
+
+    // Start the global 50-minute timer ONCE here
+    startGlobalTimer();
+
     loadQuestion(true);
+}
+
+// Global timer — runs once for the whole exam
+function startGlobalTimer() {
+    secondsLeft = TIME_LIMIT;
+    const timerEl = document.getElementById('timer');
+    timerEl.style.display = 'block';
+    timerEl.classList.remove('danger');
+    timerEl.innerText = `⏱ 50:00`;
+
+    timerInterval = setInterval(() => {
+        secondsLeft--;
+        const mins = Math.floor(secondsLeft / 60);
+        const secs = secondsLeft % 60;
+        timerEl.innerText = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
+
+        // Danger alert at 5 minutes remaining
+        if (secondsLeft <= 300) timerEl.classList.add('danger');
+
+        if (secondsLeft <= 0) {
+            clearInterval(timerInterval);
+            // Mark all remaining unanswered questions as timed out
+            for (let i = current; i < mainQuestions.length; i++) {
+                timedOut[i] = true;
+                if (!answers[i]) answers[i] = "[NO RESPONSE RECORDED]";
+            }
+            // Save current in-progress answer if any
+            const currentVal = document.getElementById('answer').value.trim();
+            if (currentVal) answers[current] = currentVal;
+            showReview();
+        }
+    }, 1000);
 }
 
 function transitionTo(fn) {
@@ -196,57 +232,26 @@ function loadQuestion(instant) {
     const load = () => {
         const qContainer = document.getElementById('question');
         const answerEl = document.getElementById('answer');
-        clearInterval(timerInterval);
         if (current >= mainQuestions.length) { showReview(); return; }
         document.getElementById('progress').innerText = `QUESTION ${current + 1} / ${mainQuestions.length}`;
         updateSegTracker();
         answerEl.value = answers[current] || '';
-        const timerEl = document.getElementById('timer');
-        timerEl.classList.remove('danger');
         if (current === 0) {
             answerEl.classList.add('single-line');
             answerEl.placeholder = "Enter your Roblox username...";
-            timerEl.style.display = 'none';
             typeText(qContainer, mainQuestions[current], 18);
         } else {
             answerEl.classList.remove('single-line');
             answerEl.placeholder = "Type answer here...";
-            timerEl.style.display = 'block';
             typeText(qContainer, mainQuestions[current], 14);
-            startTimer();
         }
         answerEl.focus();
     };
     if (instant) { load(); } else { transitionTo(load); }
 }
 
-function startTimer() {
-    secondsLeft = TIME_LIMIT;
-    const timerEl = document.getElementById('timer');
-    timerEl.innerText = `⏱ 50:00`;
-    timerEl.classList.remove('danger');
-    timerInterval = setInterval(() => {
-        secondsLeft--;
-        const mins = Math.floor(secondsLeft / 60); const secs = secondsLeft % 60;
-        timerEl.innerText = `⏱ ${mins}:${secs.toString().padStart(2, '0')}`;
-        
-        // Danger alert triggers at 5 minutes remaining (300 seconds)
-        if (secondsLeft <= 300) timerEl.classList.add('danger');
-        
-        if (secondsLeft <= 0) {
-            clearInterval(timerInterval);
-            timedOut[current] = true;
-            const currentVal = document.getElementById('answer').value.trim();
-            answers[current] = currentVal || "[NO RESPONSE RECORDED]";
-            current++;
-            loadQuestion(false);
-        }
-    }, 1000);
-}
-
 function nextQuestion() {
     clearInterval(typeInterval);
-    clearInterval(timerInterval);
     const val = document.getElementById('answer').value.trim();
     if (current === 0) {
         if (val.length < 3) return alert("Please enter your Roblox username.");
