@@ -50,7 +50,6 @@
   .review-a.timed-out { color: #ff6b6b; font-style: italic; }
   #input-area { display: none; flex-direction: column; gap: 10px; }
   #answer { width: 100%; min-height: 120px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255, 105, 180, 0.3); background: #0d0d0d; color: #fff; outline: none; resize: none; -webkit-user-select: text; user-select: text; }
-  #answer.single-line { min-height: unset; height: 48px; resize: none; }
   .action-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0, 220, 255, 0.5); background: rgba(0, 220, 255, 0.1); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
   .action-btn:hover { background: linear-gradient(90deg, #ff69b4, #00dcff); color: #000; border-color: transparent; }
   .info-pill { font-size: 12px; color: #99b4c0; border-radius: 8px; padding: 10px 14px; }
@@ -77,7 +76,7 @@
   </div>
   <div class="seg-tracker" id="segTracker"></div>
   <div id="question" class="question-card">
-    <button id="authBtn" class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
+    <button class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
   </div>
   <div id="input-area">
     <textarea id="answer" placeholder="Type answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();nextQuestion();}"></textarea>
@@ -162,31 +161,51 @@ function formatCooldown(ms) {
     return `${s}s`;
 }
 
+function showError(title, lines) {
+    document.getElementById('question').innerHTML = `
+        <div style="text-align:center;">
+            <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#ff3a3a; margin-bottom:10px;">${title}</div>
+            <div style="font-size:13px; color:#99b4c0; line-height:1.8;">${lines}</div>
+        </div>`;
+}
+
 async function showInstructions() {
     document.getElementById('notice').innerHTML = `<span class="glow-text">Discord Verified</span><br>${window.dUser.username} · <span style="color:#ff69b4; font-family:monospace;">${window.dUser.id}</span>`;
     document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:13px;">Checking eligibility...</div>`;
 
-    const cooldownRes = await fetch(WORKER_URL, {
-        method: "POST",
-        body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id })
-    });
-    const cooldownData = await cooldownRes.json();
+    const [cooldownRes, rankRes] = await Promise.all([
+        fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
+        fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
+    ]);
 
-    if (cooldownData.onCooldown) {
-        document.getElementById('question').innerHTML = `
-            <div style="text-align:center;">
-                <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#ff3a3a; margin-bottom:10px;">⏳ COOLDOWN ACTIVE</div>
-                <div style="font-size:13px; color:#99b4c0; line-height:1.7;">You have already submitted an exam recently.<br>You may retake in <span style="color:#ff69b4; font-weight:700;" id="cdTimer">${formatCooldown(cooldownData.remainingMs)}</span>.</div>
-            </div>`;
-        let remaining = cooldownData.remainingMs;
-        const cdEl = document.getElementById('cdTimer');
+    const cooldown = await cooldownRes.json();
+    const rankData = await rankRes.json();
+
+    if (cooldown.onCooldown) {
+        let remaining = cooldown.remainingMs;
+        showError("⏳ COOLDOWN ACTIVE", `You have already submitted an exam recently.<br>You may retake in <span style="color:#ff69b4; font-weight:700;" id="cdTimer">${formatCooldown(remaining)}</span>.`);
         const cdInterval = setInterval(() => {
             remaining -= 1000;
-            if (remaining <= 0) { clearInterval(cdInterval); cdEl.innerText = "now — please refresh."; return; }
-            cdEl.innerText = formatCooldown(remaining);
+            const el = document.getElementById('cdTimer');
+            if (!el) { clearInterval(cdInterval); return; }
+            if (remaining <= 0) { clearInterval(cdInterval); el.innerText = "now — please refresh."; return; }
+            el.innerText = formatCooldown(remaining);
         }, 1000);
         return;
     }
+
+    if (!rankData.eligible) {
+        if (rankData.reason === "NOT_VERIFIED") {
+            showError("⛔ NOT VERIFIED", `Your Discord account is not linked to a Roblox account.<br>Please verify with <span style="color:#00dcff; font-weight:600;">Bloxlink</span> in the server first.`);
+        } else if (rankData.reason === "RANK_TOO_LOW") {
+            showError("⛔ INELIGIBLE", `You do not meet the rank requirement to take this exam.<br>Required: <span style="color:#00dcff; font-weight:600;">Rank 30+</span>`);
+        } else {
+            showError("⚠️ VERIFICATION ERROR", `Could not verify your Roblox group rank.<br>Please try again later or contact an administrator.`);
+        }
+        return;
+    }
+
+    window.rUser = rankData.robloxId;
 
     const saved = loadProgress();
     const hasSave = saved && saved.questions && saved.questions.length > 0 && saved.current > 0;
@@ -232,8 +251,7 @@ window.onload = () => {
 async function startExam() {
     const res = await fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
     const data = await res.json();
-    const shuffled = shuffle([...data.questions]);
-    mainQuestions = ["What is your Roblox username?", ...shuffled];
+    mainQuestions = shuffle([...data.questions]);
     timedOut = new Array(mainQuestions.length).fill(false);
     answers = []; current = 0; secondsLeft = TIME_LIMIT;
     examStarted = true;
@@ -255,7 +273,7 @@ function resumeExam() {
     timedOut = saved.timedOut || new Array(mainQuestions.length).fill(false);
     current = saved.current || 0;
     secondsLeft = saved.secondsLeft ?? TIME_LIMIT;
-    window.rUser = saved.rUser || null;
+    window.rUser = saved.rUser || window.rUser;
     examStarted = true;
     buildSegTracker(mainQuestions.length);
     document.getElementById('notice').style.display = 'none';
@@ -307,15 +325,8 @@ function loadQuestion(instant, restoreValue) {
         document.getElementById('progress').innerText = `QUESTION ${current + 1} / ${mainQuestions.length}`;
         updateSegTracker();
         answerEl.value = restoreValue !== undefined ? restoreValue : (answers[current] || '');
-        if (current === 0) {
-            answerEl.classList.add('single-line');
-            answerEl.placeholder = "Enter your Roblox username...";
-            typeText(qContainer, mainQuestions[current], 18);
-        } else {
-            answerEl.classList.remove('single-line');
-            answerEl.placeholder = "Type answer here...";
-            typeText(qContainer, mainQuestions[current], 14);
-        }
+        answerEl.placeholder = "Type answer here...";
+        typeText(qContainer, mainQuestions[current], 14);
         answerEl.focus();
     };
     if (instant) { load(); } else { transitionTo(load); }
@@ -324,7 +335,6 @@ function loadQuestion(instant, restoreValue) {
 function nextQuestion() {
     clearInterval(typeInterval);
     const val = document.getElementById('answer').value.trim();
-    if (current === 0) { if (val.length < 3) return alert("Please enter your Roblox username."); window.rUser = val; }
     answers[current] = val || "No response provided.";
     current++;
     saveProgress();
@@ -353,7 +363,7 @@ function showReview() {
 async function finalSubmit() {
     examStarted = false;
     transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text">Transmitting Answers...</div>`; });
-    let content = `**Roblox Username**: ${window.rUser}\n**Discord User**: ${window.dUser?.username}\n**Discord ID**: ${window.dUser?.id}\n\n`;
+    let content = `**Roblox ID**: ${window.rUser}\n**Discord User**: ${window.dUser?.username}\n**Discord ID**: ${window.dUser?.id}\n\n`;
     mainQuestions.forEach((q, i) => {
         const status = timedOut[i] ? " [TIMED OUT]" : "";
         content += `**Q${i+1}${status}:** ${q}\n> ${answers[i]}\n\n`;
@@ -369,6 +379,10 @@ async function finalSubmit() {
     });
     if (res.status === 429) {
         transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">You have already submitted an exam in the last 24 hours.</div>`; });
+        return;
+    }
+    if (res.status === 403) {
+        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">Your Roblox rank no longer meets the requirement.</div>`; });
         return;
     }
     clearProgress();
