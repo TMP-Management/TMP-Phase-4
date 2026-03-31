@@ -15,31 +15,10 @@
   body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; overflow: hidden; }
   body::before { content: ''; position: fixed; inset: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 50%, rgba(255, 105, 180, 0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(0, 220, 255, 0.12) 0%, transparent 50%), radial-gradient(ellipse at 60% 80%, rgba(120, 0, 255, 0.07) 0%, transparent 50%); animation: bgShift 12s ease-in-out infinite alternate; z-index: 0; pointer-events: none; }
   @keyframes bgShift { 0% { transform: translate(0%, 0%) rotate(0deg); } 33% { transform: translate(3%, -4%) rotate(3deg); } 66% { transform: translate(-4%, 3%) rotate(-2deg); } 100% { transform: translate(2%, 5%) rotate(4deg); } }
-  
   .content-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; transition: filter 0.3s ease, transform 0.3s ease; z-index: 1; }
   .blur-shield { filter: blur(20px) grayscale(100%); transform: scale(0.98); pointer-events: none; }
-  
-  .blur-overlay { 
-    display: none; 
-    position: fixed; 
-    inset: 0; 
-    z-index: 10000; 
-    background: rgba(0, 0, 0, 0.4); 
-    backdrop-filter: blur(10px); 
-    -webkit-backdrop-filter: blur(10px); 
-    justify-content: center; 
-    align-items: center; 
-    color: #00dcff; 
-    font-family: 'Rajdhani', sans-serif; 
-    font-size: 22px; 
-    font-weight: 700; 
-    text-transform: uppercase; 
-    letter-spacing: 3px; 
-    text-align: center; 
-    padding: 40px;
-  }
+  .blur-overlay { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); justify-content: center; align-items: center; color: #00dcff; font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; text-align: center; padding: 40px; }
   .blur-overlay.active { display: flex; }
-
   #app { position: relative; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
   .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg, #0d0d0d, #111); border: 1px solid rgba(255, 105, 180, 0.3); border-radius: 16px; position: relative; overflow: hidden; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #ff69b4, #00dcff, #ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
@@ -165,30 +144,34 @@ function clearProgress() {
 
 function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 
+function fireAbortSync() {
+    if (!examStarted || abortLogged) return;
+    abortLogged = true;
+    saveProgress();
+    const answeredCount = answers.filter(a => a && a.trim() && a !== "[NO RESPONSE RECORDED]").length;
+    const payload = JSON.stringify({
+        type: "ABORT_EXAM_LOG",
+        discordUsername: window.dUser?.username || "Unknown",
+        discordId: window.dUser?.id || "Unknown",
+        answeredCount
+    });
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", WORKER_URL, false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    try { xhr.send(payload); } catch(e) {}
+}
+
 window.addEventListener('beforeunload', e => {
-    if (examStarted && !abortLogged) {
-        abortLogged = true;
-        saveProgress();
-        const answeredCount = answers.filter(a => a && a.trim() && a !== "[NO RESPONSE RECORDED]").length;
-        const payload = JSON.stringify({
-            type: "ABORT_EXAM_LOG",
-            discordUsername: window.dUser?.username || "Unknown",
-            discordId: window.dUser?.id || "Unknown",
-            answeredCount
-        });
-        navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: "application/json" }));
-        e.preventDefault();
-        e.returnValue = '';
-    }
+    fireAbortSync();
 });
 
 function buildSegTracker(total) {
     const tracker = document.getElementById('segTracker');
     tracker.innerHTML = '';
     for (let i = 0; i < total; i++) {
-        const b = document.createElement('div'); 
-        b.className = 'seg-block'; 
-        b.id = `seg-${i}`; 
+        const b = document.createElement('div');
+        b.className = 'seg-block';
+        b.id = `seg-${i}`;
         b.onclick = () => jumpToQuestion(i);
         tracker.appendChild(b);
     }
@@ -319,7 +302,7 @@ async function startExam() {
     const data = await res.json();
     mainQuestions = shuffle([...data.questions]);
     timedOut = new Array(mainQuestions.length).fill(false);
-    answers = new Array(mainQuestions.length).fill(""); 
+    answers = new Array(mainQuestions.length).fill("");
     current = 0; secondsLeft = TIME_LIMIT;
     examStarted = true;
     abortLogged = false;
@@ -328,7 +311,6 @@ async function startExam() {
     document.getElementById('input-area').style.display = 'flex';
     startGlobalTimer();
     startAutoSave();
-
     fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -338,7 +320,6 @@ async function startExam() {
             discordId: window.dUser?.id
         })
     }).catch(() => {});
-
     loadQuestion(true);
 }
 
@@ -360,7 +341,6 @@ function resumeExam() {
     document.getElementById('input-area').style.display = 'flex';
     startGlobalTimer();
     startAutoSave();
-
     fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -370,7 +350,6 @@ function resumeExam() {
             discordId: window.dUser?.id
         })
     }).catch(() => {});
-
     loadQuestion(true);
 }
 
@@ -448,14 +427,12 @@ function saveAndNext() {
 function showReview() {
     const val = document.getElementById('answer').value.trim();
     if (examStarted) answers[current] = val;
-    
     examStarted = false;
     clearInterval(typeInterval); clearInterval(timerInterval); clearInterval(autoSaveInterval);
     document.getElementById('timer').style.display = 'none';
     document.getElementById('input-area').style.display = 'none';
     document.getElementById('progress').innerText = "Final Review";
     document.getElementById('segTracker').innerHTML = '';
-    
     let html = `<div class="review-container">`;
     mainQuestions.forEach((q, i) => {
         const to = timedOut[i];
@@ -471,14 +448,13 @@ function showReview() {
 
 async function finalSubmit() {
     transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text">Transmitting Answers...</div>`; });
-
     let content = `**Roblox ID**: ${window.rUser}\n**Discord User**: ${window.dUser?.username}\n**Discord ID**: ${window.dUser?.id}\n\n`;
     mainQuestions.forEach((q, i) => {
         const status = timedOut[i] ? " [TIMED OUT]" : "";
         const finalAns = (answers[i] && answers[i].trim()) ? answers[i] : "No response provided.";
         content += `**Q${i+1}${status}:** ${q}\n> ${finalAns}\n\n`;
     });
-
+    abortLogged = true;
     const res = await fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -487,15 +463,13 @@ async function finalSubmit() {
             avatar: `https://cdn.discordapp.com/avatars/${window.dUser.id}/${window.dUser.avatar}.png`,
             discordId: window.dUser?.id,
             discordUsername: window.dUser?.username,
-            secondsLeft   
+            secondsLeft
         })
     });
-
     if (res.status === 429) {
         transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">Cooldown in effect.</div>`; });
         return;
     }
-
     clearProgress();
     transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:24px;">✅ Submission Received</div>`; });
 }
