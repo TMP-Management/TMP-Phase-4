@@ -196,11 +196,11 @@ async function showInstructions() {
 
     if (!rankData.eligible) {
         if (rankData.reason === "NOT_VERIFIED") {
-            showError("⛔ NOT VERIFIED", `Your Discord account is not linked to a Roblox account.<br>Please verify with <span style="color:#00dcff; font-weight:600;">Bloxlink</span> in the server first.<br><br><span style="font-size:11px; opacity:0.8;">Note: If verification is failing, Bloxlink may be down or has reached its daily API limit (500/day). Please try again later.</span>`);
+            showError("⛔ NOT VERIFIED", `Your Discord account is not linked to a Roblox account.<br>Please verify with <span style="color:#00dcff; font-weight:600;">Clan Labs</span> in the server first.`);
         } else if (rankData.reason === "RANK_TOO_LOW") {
             showError("⛔ INELIGIBLE", `You do not meet the rank requirement to take this exam.<br>Required: <span style="color:#00dcff; font-weight:600;">Rank 30+</span>`);
         } else {
-            showError("⚠️ VERIFICATION ERROR", `Could not verify your Roblox group rank.<br>Please try again later or contact an administrator.<br><br><span style="font-size:11px; opacity:0.8;">Note: If verification is failing, Bloxlink may be down or has reached its daily API limit (500/day). Please try again later.</span>`);
+            showError("⚠️ VERIFICATION ERROR", `Could not verify your Roblox group rank via Clan Labs.<br>Please try again later or contact TMP High Command.`);
         }
         return;
     }
@@ -382,7 +382,7 @@ async function finalSubmit() {
         return;
     }
     if (res.status === 403) {
-        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">Your Roblox rank no longer meets the requirement.</div>`; });
+        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">Your Roblox rank no longer meets the requirement via Clan Labs.</div>`; });
         return;
     }
     clearProgress();
