@@ -17,33 +17,33 @@
   @keyframes bgShift { 0% { transform: translate(0%, 0%) rotate(0deg); } 33% { transform: translate(3%, -4%) rotate(3deg); } 66% { transform: translate(-4%, 3%) rotate(-2deg); } 100% { transform: translate(2%, 5%) rotate(4deg); } }
   .content-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; transition: filter 0.3s ease, transform 0.3s ease; z-index: 1; }
   .blur-shield { filter: blur(20px) grayscale(100%); transform: scale(0.98); pointer-events: none; }
-  .blur-overlay { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); justify-content: center; align-items: center; color: #00dcff; font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; text-align: center; padding: 40px; }
+  .blur-overlay { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); justify-content: center; align-items: center; color: #00dcff; font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; text-align: center; padding: 40px; }
   .blur-overlay.active { display: flex; }
   #app { position: relative; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
-  .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg, #0d0d0d, #111); border: 1px solid rgba(255, 105, 180, 0.3); border-radius: 16px; position: relative; overflow: hidden; }
+  .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg, #0d0d0d, #111); border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; position: relative; overflow: hidden; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #ff69b4, #00dcff, #ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   .header-logo { width: 48px; height: 48px; border-radius: 10px; border: 1px solid rgba(255,105,180,0.4); }
   .header-title { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 18px; color: #fff; letter-spacing: 1px; }
   .header-subtitle { font-size: 12px; color: #00dcff; letter-spacing: 2px; text-transform: uppercase; }
-  .notice-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 220, 255, 0.25); border-radius: 12px; padding: 12px 16px; color: #99b4c0; font-size: 12px; text-align: center; }
+  .notice-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,220,255,0.25); border-radius: 12px; padding: 12px 16px; color: #99b4c0; font-size: 12px; text-align: center; }
   .glow-text { color: #00dcff; font-weight: 700; text-transform: uppercase; }
   .meta-row { display: flex; justify-content: space-between; align-items: center; }
   .progress { font-family: 'Rajdhani', sans-serif; font-size: 13px; color: #ff69b4; }
   .timer { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #00dcff; display: none; transition: color 0.3s; }
   .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; text-shadow: 0 0 8px rgba(255,50,50,0.8), 0 0 20px rgba(255,50,50,0.4); }
-  @keyframes timerPulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.08); } }
+  @keyframes timerPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(1.08); } }
   .seg-tracker { display: flex; gap: 4px; width: 100%; flex-wrap: wrap; }
   .seg-block { flex: 1; min-width: 20px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); transition: all 0.3s; cursor: pointer; border: 1px solid transparent; }
   .seg-block:hover { background: rgba(255,255,255,0.15); }
   .seg-block.filled { background: linear-gradient(90deg, #ff69b4, #00dcff); box-shadow: 0 0 6px rgba(0,220,255,0.4); }
   .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.3); animation: segPulse 1s ease-in-out infinite; }
   @keyframes segPulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
-  .question-card { background: #0d0d0d; border: 1px solid rgba(255, 105, 180, 0.3); border-radius: 16px; padding: 24px; color: #f0f0f0; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; padding: 24px; color: #f0f0f0; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
   .question-card.fade-out { animation: fadeOut 0.2s ease forwards; }
   .question-card.fade-in { animation: fadeIn 0.25s ease forwards; }
-  @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-8px); } }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes fadeOut { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-8px); } }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
   .typewriter-cursor { display: inline-block; width: 2px; height: 1em; background: #00dcff; margin-left: 2px; vertical-align: middle; animation: blink 0.7s step-end infinite; }
   @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
   .review-container { text-align: left; width: 100%; max-height: 380px; overflow-y: auto; }
@@ -54,14 +54,14 @@
   .review-a { font-size: 13px; color: #fff; margin-top: 4px; }
   .review-a.timed-out { color: #ff6b6b; font-style: italic; }
   #input-area { display: none; flex-direction: column; gap: 10px; }
-  #answer { width: 100%; min-height: 120px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255, 105, 180, 0.3); background: #0d0d0d; color: #fff; outline: none; resize: none; -webkit-user-select: text; user-select: text; }
+  #answer { width: 100%; min-height: 120px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,105,180,0.3); background: #0d0d0d; color: #fff; outline: none; resize: none; -webkit-user-select: text; user-select: text; }
   .btn-row { display: flex; gap: 10px; width: 100%; }
-  .action-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0, 220, 255, 0.5); background: rgba(0, 220, 255, 0.1); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
+  .action-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,220,255,0.5); background: rgba(0,220,255,0.1); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
   .action-btn:hover { background: linear-gradient(90deg, #ff69b4, #00dcff); color: #000; border-color: transparent; }
   .info-pill { font-size: 12px; color: #99b4c0; border-radius: 8px; padding: 10px 14px; }
   .info-pill.cyan { background: rgba(0,220,255,0.05); border: 1px solid rgba(0,220,255,0.15); }
   .info-pill.pink { background: rgba(255,105,180,0.05); border: 1px solid rgba(255,105,180,0.15); }
-  .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255, 255, 255, 0.2); text-align: center; margin-top: 15px; letter-spacing: 2px; }
+  .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 15px; letter-spacing: 2px; }
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -89,8 +89,8 @@
     <div id="input-area">
       <textarea id="answer" placeholder="Type answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveAndNext();}"></textarea>
       <div class="btn-row">
-        <button class="action-btn" id="finishBtn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex: 1;">Review & Submit</button>
-        <button class="action-btn" id="submitBtn" onclick="saveAndNext()" style="border-color:#ff69b4; color:#ff69b4; flex: 2;">Save & Next</button>
+        <button class="action-btn" id="finishBtn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Review & Submit</button>
+        <button class="action-btn" id="submitBtn" onclick="saveAndNext()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Save & Next</button>
       </div>
     </div>
     <div id="credit" class="credit-text">CREATED BY FAEVYNL</div>
@@ -103,9 +103,8 @@ const REDIRECT = window.location.href.split('#')[0];
 const TIME_LIMIT = 3000;
 const SAVE_KEY_PREFIX = "tmp_exam_progress_";
 
-let current = 0; let answers = []; let timedOut = []; let timerInterval = null; let secondsLeft = TIME_LIMIT;
-let examStarted = false; let typeInterval = null; let autoSaveInterval = null;
-let abortLogged = false;
+let current = 0, answers = [], timedOut = [], timerInterval = null, secondsLeft = TIME_LIMIT;
+let examStarted = false, typeInterval = null, autoSaveInterval = null, abortLogged = false;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
 
 window.addEventListener('blur', () => {
@@ -114,7 +113,6 @@ window.addEventListener('blur', () => {
         document.getElementById('overlay').classList.add('active');
     }
 });
-
 window.addEventListener('focus', () => {
     document.getElementById('main-content').classList.remove('blur-shield');
     document.getElementById('overlay').classList.remove('active');
@@ -126,11 +124,7 @@ function saveProgress() {
     try {
         const currentInput = document.getElementById('answer')?.value || '';
         if (examStarted && currentInput.trim()) answers[current] = currentInput;
-        localStorage.setItem(saveKey(), JSON.stringify({
-            current, answers, timedOut, secondsLeft,
-            rUser: window.rUser,
-            questions: mainQuestions
-        }));
+        localStorage.setItem(saveKey(), JSON.stringify({ current, answers, timedOut, secondsLeft, rUser: window.rUser, questions: mainQuestions }));
     } catch(e) {}
 }
 
@@ -142,27 +136,38 @@ function clearProgress() {
     try { localStorage.removeItem(saveKey()); } catch(e) {}
 }
 
-function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
 
-function fireAbortSync() {
+function fireAbort() {
     if (!examStarted || abortLogged) return;
     abortLogged = true;
     saveProgress();
     const answeredCount = answers.filter(a => a && a.trim() && a !== "[NO RESPONSE RECORDED]").length;
-    const payload = JSON.stringify({
-        type: "ABORT_EXAM_LOG",
-        discordUsername: window.dUser?.username || "Unknown",
-        discordId: window.dUser?.id || "Unknown",
-        answeredCount
-    });
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", WORKER_URL, false);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    try { xhr.send(payload); } catch(e) {}
+    try {
+        fetch(WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                type: "ABORT_EXAM_LOG",
+                discordUsername: window.dUser?.username || "Unknown",
+                discordId: window.dUser?.id || "Unknown",
+                answeredCount
+            }),
+            keepalive: true
+        });
+    } catch(e) {}
 }
 
-window.addEventListener('beforeunload', e => {
-    fireAbortSync();
+window.addEventListener('beforeunload', () => { fireAbort(); });
+window.addEventListener('pagehide', () => { fireAbort(); });
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { fireAbort(); }
 });
 
 function buildSegTracker(total) {
@@ -180,7 +185,8 @@ function buildSegTracker(total) {
 function updateSegTracker() {
     if (!mainQuestions.length) return;
     mainQuestions.forEach((_, i) => {
-        const b = document.getElementById(`seg-${i}`); if (!b) return;
+        const b = document.getElementById(`seg-${i}`);
+        if (!b) return;
         b.className = 'seg-block';
         if (answers[i] && answers[i].trim() && answers[i] !== "No response provided.") b.classList.add('filled');
         if (i === current) b.classList.add('current');
@@ -189,7 +195,9 @@ function updateSegTracker() {
 
 function typeText(el, text, speed) {
     clearInterval(typeInterval); el.innerHTML = ''; let i = 0;
-    const cursor = document.createElement('span'); cursor.className = 'typewriter-cursor'; el.appendChild(cursor);
+    const cursor = document.createElement('span');
+    cursor.className = 'typewriter-cursor';
+    el.appendChild(cursor);
     typeInterval = setInterval(() => {
         if (i < text.length) { el.insertBefore(document.createTextNode(text[i]), cursor); i++; }
         else { clearInterval(typeInterval); cursor.remove(); }
@@ -213,13 +221,13 @@ function formatCooldown(ms) {
 function showError(title, lines) {
     document.getElementById('question').innerHTML = `
         <div style="text-align:center;">
-            <div style="font-family:'Rajdhani',sans-serif; font-size:20px; font-weight:700; color:#ff3a3a; margin-bottom:10px;">${title}</div>
-            <div style="font-size:13px; color:#99b4c0; line-height:1.8;">${lines}</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#ff3a3a;margin-bottom:10px;">${title}</div>
+            <div style="font-size:13px;color:#99b4c0;line-height:1.8;">${lines}</div>
         </div>`;
 }
 
 async function showInstructions() {
-    document.getElementById('notice').innerHTML = `<span class="glow-text">Discord Verified</span><br>${window.dUser.username} · <span style="color:#ff69b4; font-family:monospace;">${window.dUser.id}</span>`;
+    document.getElementById('notice').innerHTML = `<span class="glow-text">Discord Verified</span><br>${window.dUser.username} · <span style="color:#ff69b4;font-family:monospace;">${window.dUser.id}</span>`;
     document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:13px;">Checking eligibility...</div>`;
 
     const [cooldownRes, rankRes] = await Promise.all([
@@ -232,7 +240,7 @@ async function showInstructions() {
 
     if (cooldown.onCooldown) {
         let remaining = cooldown.remainingMs;
-        showError("⏳ COOLDOWN ACTIVE", `You have already submitted an exam recently.<br>You may retake in <span style="color:#ff69b4; font-weight:700;" id="cdTimer">${formatCooldown(remaining)}</span>.`);
+        showError("⏳ COOLDOWN ACTIVE", `You have already submitted an exam recently.<br>You may retake in <span style="color:#ff69b4;font-weight:700;" id="cdTimer">${formatCooldown(remaining)}</span>.`);
         const cdInterval = setInterval(() => {
             remaining -= 1000;
             const el = document.getElementById('cdTimer');
@@ -245,9 +253,9 @@ async function showInstructions() {
 
     if (!rankData.eligible) {
         if (rankData.reason === "NOT_VERIFIED") {
-            showError("⛔ NOT VERIFIED", `Your Discord account is not linked to a Roblox account.<br>Please verify with <span style="color:#00dcff; font-weight:600;">Bloxlink</span> in the server first.`);
+            showError("⛔ NOT VERIFIED", `Your Discord account is not linked to a Roblox account.<br>Please verify with <span style="color:#00dcff;font-weight:600;">Bloxlink</span> in the server first.`);
         } else if (rankData.reason === "RANK_TOO_LOW") {
-            showError("⛔ INELIGIBLE", `You do not meet the rank requirement to take this exam.<br>Required: <span style="color:#00dcff; font-weight:600;">Rank 30+</span>`);
+            showError("⛔ INELIGIBLE", `You do not meet the rank requirement to take this exam.<br>Required: <span style="color:#00dcff;font-weight:600;">Rank 30+</span>`);
         } else {
             showError("⚠️ VERIFICATION ERROR", `Could not verify your Roblox group rank.<br>Please try again later.`);
         }
@@ -260,23 +268,23 @@ async function showInstructions() {
     const hasSave = saved && saved.questions && saved.questions.length > 0;
 
     const resumeBlock = hasSave ? `
-        <div style="background:rgba(255,105,180,0.08); border:1px solid rgba(255,105,180,0.3); border-radius:10px; padding:12px 14px; margin-bottom:14px; font-size:12px; color:#ffb3d9; text-align:center;">
+        <div style="background:rgba(255,105,180,0.08);border:1px solid rgba(255,105,180,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#ffb3d9;text-align:center;">
             ⚠️ <strong>Saved progress found</strong><br>
             ${saved.answers.filter(a => a && a.trim()).length}/${saved.questions.length} answered · ${Math.floor(saved.secondsLeft/60)}m ${saved.secondsLeft%60}s remaining
-            <div style="display:flex; gap:8px; margin-top:10px;">
-                <button class="action-btn" onclick="resumeExam()" style="border-color:#ff69b4; color:#ff69b4; padding:10px;">▶ Resume</button>
-                <button class="action-btn" onclick="clearProgressAndStart()" style="padding:10px; font-size:11px; opacity:0.6;">Start Fresh</button>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+                <button class="action-btn" onclick="resumeExam()" style="border-color:#ff69b4;color:#ff69b4;padding:10px;">▶ Resume</button>
+                <button class="action-btn" onclick="clearProgressAndStart()" style="padding:10px;font-size:11px;opacity:0.6;">Start Fresh</button>
             </div>
         </div>` : '';
 
     document.getElementById('question').innerHTML = `
-        <div style="text-align:left; width:100%;">
-            <div style="font-family:'Rajdhani',sans-serif; font-size:17px; font-weight:700; color:#ff69b4; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px; text-align:center;">Congratulations, Manager on Trial</div>
-            <div style="font-size:13px; color:#b0c8d4; line-height:1.75; margin-bottom:16px;">You've made it to <span style="color:#00dcff; font-weight:600;">Phase 4</span> of The Management Program. This written assessment is designed to evaluate the knowledge and judgment you've developed throughout your time.</div>
-            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
-                <div class="info-pill cyan">📖 <span style="color:#fff; font-weight:500;">Open Book</span> — You may reference any materials during this exam.</div>
-                <div class="info-pill pink">⏱ <span style="color:#fff; font-weight:500;">50 Minutes Total</span> — You have 50 minutes to complete the entire exam.</div>
-                <div class="info-pill cyan">📝 <span style="color:#fff; font-weight:500;">Navigation</span> — Click the blocks at the top to skip between questions.</div>
+        <div style="text-align:left;width:100%;">
+            <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center;">Congratulations, Manager on Trial</div>
+            <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;">You've made it to <span style="color:#00dcff;font-weight:600;">Phase 4</span> of The Management Program. This written assessment is designed to evaluate the knowledge and judgment you've developed throughout your time.</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+                <div class="info-pill cyan">📖 <span style="color:#fff;font-weight:500;">Open Book</span> — You may reference any materials during this exam.</div>
+                <div class="info-pill pink">⏱ <span style="color:#fff;font-weight:500;">50 Minutes Total</span> — You have 50 minutes to complete the entire exam.</div>
+                <div class="info-pill cyan">📝 <span style="color:#fff;font-weight:500;">Navigation</span> — Click the blocks at the top to skip between questions.</div>
             </div>
             ${resumeBlock}
             ${!hasSave ? `<button class="action-btn" onclick="startExam()">Begin Examination</button>` : ''}
@@ -289,7 +297,8 @@ window.onload = () => {
     if (dToken) {
         document.getElementById('question').innerHTML = `<div class="glow-text">Verifying Discord...</div>`;
         fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${dToken}` } })
-        .then(res => res.json()).then(user => { window.dUser = user; showInstructions(); })
+        .then(res => res.json())
+        .then(user => { window.dUser = user; showInstructions(); })
         .catch(() => {
             document.getElementById('notice').innerHTML = `<span style="color:red;">Verification Failed</span><br>Please try again.`;
             document.getElementById('question').innerHTML = `<button class="action-btn" onclick="loginDiscord()">Try Again</button>`;
@@ -303,9 +312,7 @@ async function startExam() {
     mainQuestions = shuffle([...data.questions]);
     timedOut = new Array(mainQuestions.length).fill(false);
     answers = new Array(mainQuestions.length).fill("");
-    current = 0; secondsLeft = TIME_LIMIT;
-    examStarted = true;
-    abortLogged = false;
+    current = 0; secondsLeft = TIME_LIMIT; examStarted = true; abortLogged = false;
     buildSegTracker(mainQuestions.length);
     document.getElementById('notice').style.display = 'none';
     document.getElementById('input-area').style.display = 'flex';
@@ -313,12 +320,7 @@ async function startExam() {
     startAutoSave();
     fetch(WORKER_URL, {
         method: "POST",
-        body: JSON.stringify({
-            type: "START_EXAM_LOG",
-            robloxId: window.rUser,
-            discordUsername: window.dUser?.username,
-            discordId: window.dUser?.id
-        })
+        body: JSON.stringify({ type: "START_EXAM_LOG", robloxId: window.rUser, discordUsername: window.dUser?.username, discordId: window.dUser?.id })
     }).catch(() => {});
     loadQuestion(true);
 }
@@ -334,8 +336,7 @@ function resumeExam() {
     current = saved.current || 0;
     secondsLeft = saved.secondsLeft ?? TIME_LIMIT;
     window.rUser = saved.rUser || window.rUser;
-    examStarted = true;
-    abortLogged = false;
+    examStarted = true; abortLogged = false;
     buildSegTracker(mainQuestions.length);
     document.getElementById('notice').style.display = 'none';
     document.getElementById('input-area').style.display = 'flex';
@@ -343,12 +344,7 @@ function resumeExam() {
     startAutoSave();
     fetch(WORKER_URL, {
         method: "POST",
-        body: JSON.stringify({
-            type: "START_EXAM_LOG",
-            robloxId: window.rUser,
-            discordUsername: window.dUser?.username,
-            discordId: window.dUser?.id
-        })
+        body: JSON.stringify({ type: "START_EXAM_LOG", robloxId: window.rUser, discordUsername: window.dUser?.username, discordId: window.dUser?.id })
     }).catch(() => {});
     loadQuestion(true);
 }
@@ -371,10 +367,7 @@ function startGlobalTimer() {
         if (secondsLeft <= 0) {
             clearInterval(timerInterval); clearInterval(autoSaveInterval);
             for (let i = 0; i < mainQuestions.length; i++) {
-                if (!answers[i] || !answers[i].trim()) {
-                    timedOut[i] = true;
-                    answers[i] = "[NO RESPONSE RECORDED]";
-                }
+                if (!answers[i] || !answers[i].trim()) { timedOut[i] = true; answers[i] = "[NO RESPONSE RECORDED]"; }
             }
             showReview();
         }
@@ -403,8 +396,7 @@ function loadQuestion(instant) {
 
 function jumpToQuestion(index) {
     if (!examStarted) return;
-    const val = document.getElementById('answer').value.trim();
-    answers[current] = val;
+    answers[current] = document.getElementById('answer').value.trim();
     current = index;
     saveProgress();
     loadQuestion(false);
@@ -412,8 +404,7 @@ function jumpToQuestion(index) {
 
 function saveAndNext() {
     clearInterval(typeInterval);
-    const val = document.getElementById('answer').value.trim();
-    answers[current] = val;
+    answers[current] = document.getElementById('answer').value.trim();
     if (current < mainQuestions.length - 1) {
         current++;
         saveProgress();
@@ -425,8 +416,7 @@ function saveAndNext() {
 }
 
 function showReview() {
-    const val = document.getElementById('answer').value.trim();
-    if (examStarted) answers[current] = val;
+    if (examStarted) answers[current] = document.getElementById('answer').value.trim();
     examStarted = false;
     clearInterval(typeInterval); clearInterval(timerInterval); clearInterval(autoSaveInterval);
     document.getElementById('timer').style.display = 'none';
@@ -442,7 +432,7 @@ function showReview() {
             <div class="review-a${to?' timed-out':''}">${displayAns}</div>
         </div>`;
     });
-    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px; border-color:#ff69b4; color:#ff69b4;">Submit Final Exam</button>`;
+    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px;border-color:#ff69b4;color:#ff69b4;">Submit Final Exam</button>`;
     transitionTo(() => { document.getElementById('question').innerHTML = html; });
 }
 
@@ -458,8 +448,7 @@ async function finalSubmit() {
     const res = await fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
-            username: window.rUser,
-            content,
+            username: window.rUser, content,
             avatar: `https://cdn.discordapp.com/avatars/${window.dUser.id}/${window.dUser.avatar}.png`,
             discordId: window.dUser?.id,
             discordUsername: window.dUser?.username,
@@ -467,7 +456,7 @@ async function finalSubmit() {
         })
     });
     if (res.status === 429) {
-        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0; font-size:13px; margin-top:10px;">Cooldown in effect.</div>`; });
+        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0;font-size:13px;margin-top:10px;">Cooldown in effect.</div>`; });
         return;
     }
     clearProgress();
