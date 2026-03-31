@@ -126,7 +126,7 @@ const SAVE_KEY_PREFIX = "tmp_exam_progress_";
 
 let current = 0; let answers = []; let timedOut = []; let timerInterval = null; let secondsLeft = TIME_LIMIT;
 let examStarted = false; let typeInterval = null; let autoSaveInterval = null;
-let abortLogged = false; // prevent duplicate abort logs
+let abortLogged = false;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
 
 window.addEventListener('blur', () => {
@@ -165,13 +165,11 @@ function clearProgress() {
 
 function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 
-// Fire abort log on page close if exam was in progress
 window.addEventListener('beforeunload', e => {
     if (examStarted && !abortLogged) {
         abortLogged = true;
         saveProgress();
         const answeredCount = answers.filter(a => a && a.trim() && a !== "[NO RESPONSE RECORDED]").length;
-        // Use sendBeacon so it fires even during unload
         const payload = JSON.stringify({
             type: "ABORT_EXAM_LOG",
             discordUsername: window.dUser?.username || "Unknown",
@@ -331,7 +329,6 @@ async function startExam() {
     startGlobalTimer();
     startAutoSave();
 
-    // ✅ Fire START_EXAM_LOG
     fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -364,7 +361,6 @@ function resumeExam() {
     startGlobalTimer();
     startAutoSave();
 
-    // ✅ Fire START_EXAM_LOG for resume too
     fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -483,7 +479,6 @@ async function finalSubmit() {
         content += `**Q${i+1}${status}:** ${q}\n> ${finalAns}\n\n`;
     });
 
-    // ✅ secondsLeft is now included in the payload
     const res = await fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
@@ -492,7 +487,7 @@ async function finalSubmit() {
             avatar: `https://cdn.discordapp.com/avatars/${window.dUser.id}/${window.dUser.avatar}.png`,
             discordId: window.dUser?.id,
             discordUsername: window.dUser?.username,
-            secondsLeft   // ← was missing before
+            secondsLeft   
         })
     });
 
