@@ -189,8 +189,20 @@ function updateSegTracker() {
         const b = document.getElementById(`seg-${i}`);
         if (!b) return;
         b.className = 'seg-block';
-        if (answers[i] && answers[i].trim() && answers[i] !== "No response provided.") b.classList.add('filled');
+        const isAnswered = answers[i] && answers[i].trim() && answers[i] !== "No response provided.";
+        
+        if (isAnswered) b.classList.add('filled');
         if (i === current) b.classList.add('current');
+        
+        if (isAnswered && i !== current) {
+            b.style.cursor = 'not-allowed';
+            b.style.pointerEvents = 'none';
+            b.onclick = null;
+        } else {
+            b.style.cursor = 'pointer';
+            b.style.pointerEvents = 'auto';
+            b.onclick = () => jumpToQuestion(i);
+        }
     });
 }
 
@@ -399,6 +411,8 @@ function loadQuestion(instant) {
 
 function jumpToQuestion(index) {
     if (!examStarted) return;
+    if (index !== current && answers[index] && answers[index].trim()) return;
+    
     answers[current] = document.getElementById('answer').value.trim();
     current = index;
     saveProgress();
