@@ -416,6 +416,7 @@ function saveAndNext() {
     } else {
         saveProgress();
         updateSegTracker();
+        showReview();
     }
 }
 
@@ -431,9 +432,9 @@ function showReview() {
     mainQuestions.forEach((q, i) => {
         const to = timedOut[i];
         const displayAns = (answers[i] && answers[i].trim()) ? answers[i] : "[NO RESPONSE]";
-        html += `<div class="review-item${to?' timed-out':''}">
-            <div class="review-q${to?' timed-out':''}">Question ${i+1}${to?' — [TIMED OUT]':''}</div>
-            <div class="review-a${to?' timed-out'}">${displayAns}</div>
+        html += `<div class="review-item${to ? ' timed-out' : ''}">
+            <div class="review-q${to ? ' timed-out' : ''}">Question ${i+1}${to ? ' — [TIMED OUT]' : ''}</div>
+            <div class="review-a${to ? ' timed-out' : ''}">${displayAns}</div>
         </div>`;
     });
     html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px;border-color:#ff69b4;color:#ff69b4;">Submit Final Exam</button>`;
