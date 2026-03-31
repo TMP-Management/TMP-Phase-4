@@ -407,7 +407,8 @@ function jumpToQuestion(index) {
 
 function saveAndNext() {
     clearInterval(typeInterval);
-    answers[current] = document.getElementById('answer').value.trim();
+    const answerEl = document.getElementById('answer');
+    answers[current] = answerEl.value.trim();
     if (current < mainQuestions.length - 1) {
         current++;
         saveProgress();
@@ -432,7 +433,7 @@ function showReview() {
         const displayAns = (answers[i] && answers[i].trim()) ? answers[i] : "[NO RESPONSE]";
         html += `<div class="review-item${to?' timed-out':''}">
             <div class="review-q${to?' timed-out':''}">Question ${i+1}${to?' — [TIMED OUT]':''}</div>
-            <div class="review-a${to?' timed-out':''}">${displayAns}</div>
+            <div class="review-a${to?' timed-out'}">${displayAns}</div>
         </div>`;
     });
     html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px;border-color:#ff69b4;color:#ff69b4;">Submit Final Exam</button>`;
