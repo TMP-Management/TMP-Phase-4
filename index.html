@@ -12,20 +12,21 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@400;500&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
-  body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; overflow: hidden; transition: filter 0.2s ease; }
+  body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; overflow: hidden; }
   body::before { content: ''; position: fixed; inset: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 50%, rgba(255, 105, 180, 0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(0, 220, 255, 0.12) 0%, transparent 50%), radial-gradient(ellipse at 60% 80%, rgba(120, 0, 255, 0.07) 0%, transparent 50%); animation: bgShift 12s ease-in-out infinite alternate; z-index: 0; pointer-events: none; }
   @keyframes bgShift { 0% { transform: translate(0%, 0%) rotate(0deg); } 33% { transform: translate(3%, -4%) rotate(3deg); } 66% { transform: translate(-4%, 3%) rotate(-2deg); } 100% { transform: translate(2%, 5%) rotate(4deg); } }
   
-  .blur-shield { filter: blur(25px) grayscale(100%); pointer-events: none; }
+  .content-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; transition: filter 0.3s ease, transform 0.3s ease; z-index: 1; }
+  .blur-shield { filter: blur(20px) grayscale(100%); transform: scale(0.98); pointer-events: none; }
   
   .blur-overlay { 
     display: none; 
     position: fixed; 
     inset: 0; 
     z-index: 10000; 
-    background: rgba(0, 0, 0, 0.6); 
-    backdrop-filter: blur(20px); 
-    -webkit-backdrop-filter: blur(20px); 
+    background: rgba(0, 0, 0, 0.4); 
+    backdrop-filter: blur(10px); 
+    -webkit-backdrop-filter: blur(10px); 
     justify-content: center; 
     align-items: center; 
     color: #00dcff; 
@@ -39,7 +40,7 @@
   }
   .blur-overlay.active { display: flex; }
 
-  #app { position: relative; z-index: 1; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
+  #app { position: relative; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
   .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg, #0d0d0d, #111); border: 1px solid rgba(255, 105, 180, 0.3); border-radius: 16px; position: relative; overflow: hidden; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #ff69b4, #00dcff, #ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
@@ -84,30 +85,32 @@
 </head>
 <body oncontextmenu="return false;">
 <div id="overlay" class="blur-overlay">Assessment Paused: Refocus Window</div>
-<div id="app">
-  <div class="header">
-    <img src="https://i.imgur.com/mWDOZI5.png" class="header-logo">
-    <div class="header-text">
-      <div class="header-title">TMP EXAMINATION</div>
-      <div class="header-subtitle">Phase 4 · Written Assessment</div>
+<div id="main-content" class="content-wrapper">
+  <div id="app">
+    <div class="header">
+      <img src="https://i.imgur.com/mWDOZI5.png" class="header-logo">
+      <div class="header-text">
+        <div class="header-title">TMP EXAMINATION</div>
+        <div class="header-subtitle">Phase 4 · Written Assessment</div>
+      </div>
     </div>
+    <div class="notice-card" id="notice">
+      <span class="glow-text">Discord Verification</span><br>Link your Discord account to begin.
+    </div>
+    <div class="meta-row">
+      <div class="progress" id="progress">Locked</div>
+      <div class="timer" id="timer">⏱ 50:00</div>
+    </div>
+    <div class="seg-tracker" id="segTracker"></div>
+    <div id="question" class="question-card">
+      <button class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
+    </div>
+    <div id="input-area">
+      <textarea id="answer" placeholder="Type answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();nextQuestion();}"></textarea>
+      <button class="action-btn" id="submitBtn" onclick="nextQuestion()" style="border-color:#ff69b4; color:#ff69b4;">Submit Answer</button>
+    </div>
+    <div id="credit" class="credit-text">CREATED BY FAEVYNL</div>
   </div>
-  <div class="notice-card" id="notice">
-    <span class="glow-text">Discord Verification</span><br>Link your Discord account to begin.
-  </div>
-  <div class="meta-row">
-    <div class="progress" id="progress">Locked</div>
-    <div class="timer" id="timer">⏱ 50:00</div>
-  </div>
-  <div class="seg-tracker" id="segTracker"></div>
-  <div id="question" class="question-card">
-    <button class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
-  </div>
-  <div id="input-area">
-    <textarea id="answer" placeholder="Type answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();nextQuestion();}"></textarea>
-    <button class="action-btn" id="submitBtn" onclick="nextQuestion()" style="border-color:#ff69b4; color:#ff69b4;">Submit Answer</button>
-  </div>
-  <div id="credit" class="credit-text">CREATED BY FAEVYNL</div>
 </div>
 <script>
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
@@ -122,13 +125,13 @@ window.dUser = null; window.rUser = null; let mainQuestions = [];
 
 window.addEventListener('blur', () => {
     if (examStarted) {
-        document.body.classList.add('blur-shield');
+        document.getElementById('main-content').classList.add('blur-shield');
         document.getElementById('overlay').classList.add('active');
     }
 });
 
 window.addEventListener('focus', () => {
-    document.body.classList.remove('blur-shield');
+    document.getElementById('main-content').classList.remove('blur-shield');
     document.getElementById('overlay').classList.remove('active');
 });
 
