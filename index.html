@@ -86,11 +86,10 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-const TIME_LIMIT = 3000;
 
-let current = 0, answers = [], timerInterval = null, secondsLeft = TIME_LIMIT;
+let current = 0, answers = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
-window.dUser = null; window.rUser = null; window.startTimeVal = null;
+window.dUser = null; window.rUser = null;
 
 window.addEventListener('keyup', async (e) => {
   if (e.key === 'PrintScreen') {
@@ -179,9 +178,11 @@ async function startExam() {
   const logData = await logRes.json();
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
-  window.startTimeVal = Number(logData.startTime) || Date.now();
-  const elapsed = Math.floor((Date.now() - window.startTimeVal) / 1000);
-  secondsLeft = Math.max(0, TIME_LIMIT - elapsed);
+  
+  const serverSeconds = Number(logData.secondsLeft);
+  const perfStart = performance.now();
+  
+  secondsLeft = serverSeconds;
   if (secondsLeft <= 0) {
     showReview();
     return;
@@ -190,18 +191,19 @@ async function startExam() {
   buildSegTracker(mainQuestions.length);
   document.getElementById('notice').style.display = 'none';
   document.getElementById('input-area').style.display = 'flex';
-  startGlobalTimer();
+  
+  startGlobalTimer(perfStart, serverSeconds);
   loadQuestion();
 }
 
-function startGlobalTimer() {
+function startGlobalTimer(perfStart, serverSeconds) {
   if (timerInterval) clearInterval(timerInterval);
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
   
   const updateTimer = () => {
-    const elapsed = Math.floor((Date.now() - window.startTimeVal) / 1000);
-    secondsLeft = Math.max(0, TIME_LIMIT - elapsed);
+    const elapsed = Math.floor((performance.now() - perfStart) / 1000);
+    secondsLeft = Math.max(0, serverSeconds - elapsed);
     
     if (secondsLeft <= 0) {
       clearInterval(timerInterval);
@@ -209,8 +211,10 @@ function startGlobalTimer() {
       return;
     }
     
-    const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
-    timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
+    
     if (secondsLeft <= 300) timerEl.classList.add('danger');
   };
 
