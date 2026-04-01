@@ -86,7 +86,6 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-
 let current = 0, answers = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 window.dUser = null; window.rUser = null;
@@ -101,12 +100,7 @@ window.addEventListener('keyup', async (e) => {
         body: JSON.stringify({ type: "SCREENSHOT_EVENT", discordId: window.dUser?.id, discordUsername: window.dUser?.username })
       });
     } catch(e) {}
-    document.body.innerHTML = `
-      <div style="background:#0a0a0a; color:#ff3a3a; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:'Rajdhani'; text-align:center;">
-        <h1 style="font-size:40px;">CRITICAL SECURITY VIOLATION</h1>
-        <p style="color:#00dcff;">Unauthorized Screen Capture Attempt Recorded.</p>
-        <p style="margin-top:20px; font-size:12px; color:rgba(255,255,255,0.3);">INCIDENT REF: ${Date.now()}</p>
-      </div>`;
+    document.body.innerHTML = `<div style="background:#0a0a0a; color:#ff3a3a; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:'Rajdhani'; text-align:center;"><h1 style="font-size:40px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;">Unauthorized Screen Capture Attempt Recorded.</p></div>`;
   }
 });
 
@@ -132,9 +126,6 @@ function updateSegTracker() {
     if (examStarted && !reviewMode) {
       b.classList.add('clickable');
       b.onclick = () => jumpToQuestion(i);
-    } else {
-      b.classList.remove('clickable');
-      b.onclick = null;
     }
     if (answers[i] && answers[i].trim()) b.classList.add('filled');
     if (i === current) b.classList.add('current');
@@ -143,9 +134,7 @@ function updateSegTracker() {
 
 function jumpToQuestion(i) {
   if (reviewMode) return;
-  if (document.getElementById('input-area').style.display === 'flex') {
-    answers[current] = document.getElementById('answer').value.trim();
-  }
+  answers[current] = document.getElementById('answer').value.trim();
   current = i;
   loadQuestion();
 }
@@ -162,12 +151,29 @@ async function showInstructions() {
   if (cooldown.onCooldown) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>COOLDOWN ACTIVE</div>`; return; }
   if (!rankData.eligible) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>UNAUTHORIZED RANK</div>`; return; }
   window.rUser = rankData.robloxId;
-  document.getElementById('question').innerHTML = `
-    <div style="text-align:left;width:100%;">
-      <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4</div>
-      <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div>
-      <button class="action-btn" onclick="startExam()">Begin Exam</button>
-    </div>`;
+  document.getElementById('question').innerHTML = `<div style="text-align:left;width:100%;"><div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4</div><div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div><button class="action-btn" onclick="startExam()">Begin Exam</button></div>`;
+}
+
+function startGlobalTimer(perfStart, serverSeconds) {
+  if (timerInterval) clearInterval(timerInterval);
+  const timerEl = document.getElementById('timer');
+  timerEl.style.display = 'block';
+  const tick = () => {
+    const elapsed = Math.floor((performance.now() - perfStart) / 1000);
+    secondsLeft = Math.floor(serverSeconds - elapsed);
+    if (secondsLeft <= 0) {
+      clearInterval(timerInterval);
+      timerEl.innerText = "⏱ 0:00";
+      if (!reviewMode) showReview();
+      return;
+    }
+    const m = Math.floor(secondsLeft / 60);
+    const s = secondsLeft % 60;
+    timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
+    if (secondsLeft <= 300) timerEl.classList.add('danger');
+  };
+  tick();
+  timerInterval = setInterval(tick, 1000);
 }
 
 async function startExam() {
@@ -178,48 +184,15 @@ async function startExam() {
   const logData = await logRes.json();
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
-  
   const serverSeconds = Math.floor(Number(logData.secondsLeft));
   const perfStart = performance.now();
-  
-  secondsLeft = serverSeconds;
-  if (secondsLeft <= 0) {
-    showReview();
-    return;
-  }
+  if (serverSeconds <= 0) { showReview(); return; }
   examStarted = true;
   buildSegTracker(mainQuestions.length);
   document.getElementById('notice').style.display = 'none';
   document.getElementById('input-area').style.display = 'flex';
-  
   startGlobalTimer(perfStart, serverSeconds);
   loadQuestion();
-}
-
-function startGlobalTimer(perfStart, serverSeconds) {
-  if (timerInterval) clearInterval(timerInterval);
-  const timerEl = document.getElementById('timer');
-  timerEl.style.display = 'block';
-  
-  const updateTimer = () => {
-    const elapsed = Math.floor((performance.now() - perfStart) / 1000);
-    secondsLeft = Math.floor(Math.max(0, serverSeconds - elapsed));
-    
-    if (secondsLeft <= 0) {
-      clearInterval(timerInterval);
-      if (!reviewMode) showReview();
-      return;
-    }
-    
-    const m = Math.floor(secondsLeft / 60);
-    const s = secondsLeft % 60;
-    timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
-    
-    if (secondsLeft <= 300) timerEl.classList.add('danger');
-  };
-
-  updateTimer();
-  timerInterval = setInterval(updateTimer, 1000);
 }
 
 function loadQuestion() {
@@ -240,28 +213,17 @@ function showReview() {
   updateSegTracker();
   let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
   mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
-  html += `</div>
-  <div style="display:flex;gap:10px;width:100%;margin-top:15px;">
-    <button class="action-btn" onclick="startExam()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button>
-    <button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button>
-  </div>`;
+  html += `</div><div style="display:flex;gap:10px;width:100%;margin-top:15px;"><button class="action-btn" onclick="startExam()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button><button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button></div>`;
   document.getElementById('question').innerHTML = html;
 }
 
 async function finalSubmit() {
-  reviewMode = true;
-  examStarted = false;
-  clearInterval(timerInterval);
+  reviewMode = true; examStarted = false; clearInterval(timerInterval);
   document.getElementById('question').innerHTML = "Submitting...";
   let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
   mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
   const submitRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
-  if (submitRes.ok) {
-    document.getElementById('question').innerHTML = "Submitted successfully.";
-  } else {
-    const errData = await submitRes.json();
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;">Submission failed: ${errData.error || 'Unknown Error'}</div>`;
-  }
+  if (submitRes.ok) { document.getElementById('question').innerHTML = "Submitted successfully."; }
 }
 
 window.onload = () => {
