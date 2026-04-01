@@ -4,20 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TMP Phase 4 | Written Assessment</title>
-<meta property="og:type" content="website">
-<meta property="og:title" content="TMP Phase 4 Examination">
-<meta property="og:description" content="This will allow you to take the examination to complete your Phase 4. We wish you the best of luck.">
-<meta property="og:image" content="https://i.imgur.com/mWDOZI5.png">
-<meta name="theme-color" content="#00dcff">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Inter:wght@400;500&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
   body { font-family: 'Inter', sans-serif; background-color: #0a0a0a; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 24px; overflow: hidden; }
   body::before { content: ''; position: fixed; inset: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 50%, rgba(255, 105, 180, 0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(0, 220, 255, 0.12) 0%, transparent 50%), radial-gradient(ellipse at 60% 80%, rgba(120, 0, 255, 0.07) 0%, transparent 50%); animation: bgShift 12s ease-in-out infinite alternate; z-index: 0; pointer-events: none; }
-  @keyframes bgShift { 0% { transform: translate(0%, 0%) rotate(0deg); } 33% { transform: translate(3%, -4%) rotate(3deg); } 66% { transform: translate(-4%, 3%) rotate(-2deg); } 100% { transform: translate(2%, 5%) rotate(4deg); } }
+  @keyframes bgShift { 0% { transform: translate(0%, 0%) rotate(0deg); } 100% { transform: translate(2%, 5%) rotate(4deg); } }
   .content-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; transition: filter 0.3s ease, transform 0.3s ease; z-index: 1; }
-  .blur-shield { filter: blur(20px) grayscale(100%); transform: scale(0.98); pointer-events: none; }
-  .blur-overlay { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); justify-content: center; align-items: center; color: #00dcff; font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; text-align: center; padding: 40px; }
+  .blur-shield { filter: blur(40px) grayscale(100%); transform: scale(0.95); pointer-events: none; }
+  .blur-overlay { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); justify-content: center; align-items: center; color: #ff3a3a; font-family: 'Rajdhani', sans-serif; font-size: 22px; font-weight: 700; text-transform: uppercase; letter-spacing: 3px; text-align: center; }
   .blur-overlay.active { display: flex; }
   #app { position: relative; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
   .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg, #0d0d0d, #111); border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; position: relative; overflow: hidden; }
@@ -30,42 +25,25 @@
   .glow-text { color: #00dcff; font-weight: 700; text-transform: uppercase; }
   .meta-row { display: flex; justify-content: space-between; align-items: center; }
   .progress { font-family: 'Rajdhani', sans-serif; font-size: 13px; color: #ff69b4; }
-  .timer { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #00dcff; display: none; transition: color 0.3s; }
-  .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; text-shadow: 0 0 8px rgba(255,50,50,0.8), 0 0 20px rgba(255,50,50,0.4); }
-  @keyframes timerPulse { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.7; transform:scale(1.08); } }
+  .timer { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #00dcff; display: none; }
+  .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; }
+  @keyframes timerPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
   .seg-tracker { display: flex; gap: 4px; width: 100%; flex-wrap: wrap; }
-  .seg-block { flex: 1; min-width: 20px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); transition: all 0.3s; cursor: pointer; border: 1px solid transparent; }
-  .seg-block:hover { background: rgba(255,255,255,0.15); }
-  .seg-block.filled { background: linear-gradient(90deg, #ff69b4, #00dcff); box-shadow: 0 0 6px rgba(0,220,255,0.4); }
-  .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.3); animation: segPulse 1s ease-in-out infinite; }
-  @keyframes segPulse { 0%,100% { opacity:1; } 50% { opacity:0.6; } }
+  .seg-block { flex: 1; min-width: 20px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); border: 1px solid transparent; transition: 0.3s; }
+  .seg-block.filled { background: linear-gradient(90deg, #ff69b4, #00dcff); }
+  .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.3); }
   .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; padding: 24px; color: #f0f0f0; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  .question-card.fade-out { animation: fadeOut 0.2s ease forwards; }
-  .question-card.fade-in { animation: fadeIn 0.25s ease forwards; }
-  @keyframes fadeOut { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(-8px); } }
-  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
   .typewriter-cursor { display: inline-block; width: 2px; height: 1em; background: #00dcff; margin-left: 2px; vertical-align: middle; animation: blink 0.7s step-end infinite; }
   @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0; } }
-  .review-container { text-align: left; width: 100%; max-height: 380px; overflow-y: auto; }
-  .review-item { margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; cursor: default; }
-  .review-item.timed-out { border-left: 2px solid #ff3a3a; padding-left: 10px; }
-  .review-q { font-size: 10px; color: #00dcff; text-transform: uppercase; }
-  .review-q.timed-out { color: #ff3a3a; }
-  .review-a { font-size: 13px; color: #fff; margin-top: 4px; }
-  .review-a.timed-out { color: #ff6b6b; font-style: italic; }
   #input-area { display: none; flex-direction: column; gap: 10px; }
   #answer { width: 100%; min-height: 120px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,105,180,0.3); background: #0d0d0d; color: #fff; outline: none; resize: none; -webkit-user-select: text; user-select: text; }
-  .btn-row { display: flex; gap: 10px; width: 100%; }
   .action-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,220,255,0.5); background: rgba(0,220,255,0.1); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
-  .action-btn:hover { background: linear-gradient(90deg, #ff69b4, #00dcff); color: #000; border-color: transparent; }
-  .info-pill { font-size: 12px; color: #99b4c0; border-radius: 8px; padding: 10px 14px; }
-  .info-pill.cyan { background: rgba(0,220,255,0.05); border: 1px solid rgba(0,220,255,0.15); }
-  .info-pill.pink { background: rgba(255,105,180,0.05); border: 1px solid rgba(255,105,180,0.15); }
+  .action-btn:hover { background: linear-gradient(90deg, #ff69b4, #00dcff); color: #000; }
   .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 15px; letter-spacing: 2px; }
 </style>
 </head>
-<body oncontextmenu="return false;">
-<div id="overlay" class="blur-overlay">Assessment Paused: Refocus Window</div>
+<body oncontextmenu="return false;" onkeydown="return (event.keyCode != 44)">
+<div id="overlay" class="blur-overlay">SECURITY ALERT: VIEWING BLOCKED</div>
 <div id="main-content" class="content-wrapper">
   <div id="app">
     <div class="header">
@@ -88,8 +66,8 @@
     </div>
     <div id="input-area">
       <textarea id="answer" placeholder="Type answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveAndNext();}"></textarea>
-      <div class="btn-row">
-        <button class="action-btn" id="finishBtn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Review & Submit</button>
+      <div class="btn-row" style="display:flex;gap:10px;width:100%;">
+        <button class="action-btn" id="finishBtn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Review</button>
         <button class="action-btn" id="submitBtn" onclick="saveAndNext()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Save & Next</button>
       </div>
     </div>
@@ -101,11 +79,17 @@ const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
 const TIME_LIMIT = 3000;
-const SAVE_KEY_PREFIX = "tmp_exam_progress_";
 
 let current = 0, answers = [], timedOut = [], timerInterval = null, secondsLeft = TIME_LIMIT;
 let examStarted = false, typeInterval = null, autoSaveInterval = null, abortLogged = true;
 window.dUser = null; window.rUser = null; let mainQuestions = [];
+
+window.addEventListener('keyup', (e) => {
+    if (e.key === 'PrintScreen') {
+        navigator.clipboard.writeText('Unauthorized Screenshot Detected');
+        document.body.innerHTML = "<div style='color:red;font-family:Rajdhani;font-size:30px;text-align:center;margin-top:20vh;'>SECURITY VIOLATION: SCREENSHOT DETECTED<br>This incident has been logged.</div>";
+    }
+});
 
 window.addEventListener('blur', () => {
     if (examStarted) {
@@ -113,63 +97,23 @@ window.addEventListener('blur', () => {
         document.getElementById('overlay').classList.add('active');
     }
 });
+
 window.addEventListener('focus', () => {
     document.getElementById('main-content').classList.remove('blur-shield');
     document.getElementById('overlay').classList.remove('active');
 });
 
-function saveKey() { return SAVE_KEY_PREFIX + (window.dUser?.id || 'unknown'); }
+function saveKey() { return "tmp_v4_" + (window.dUser?.id || 'anon'); }
 
 function saveProgress() {
-    try {
-        const currentInput = document.getElementById('answer')?.value || '';
-        if (examStarted && currentInput.trim()) answers[current] = currentInput;
-        localStorage.setItem(saveKey(), JSON.stringify({ current, answers, timedOut, secondsLeft, rUser: window.rUser, questions: mainQuestions }));
-    } catch(e) {}
+    const curVal = document.getElementById('answer')?.value || '';
+    if (examStarted && curVal.trim()) answers[current] = curVal;
+    localStorage.setItem(saveKey(), JSON.stringify({ current, answers, timedOut, rUser: window.rUser, questions: mainQuestions }));
 }
 
 function loadProgress() {
-    try { const r = localStorage.getItem(saveKey()); return r ? JSON.parse(r) : null; } catch(e) { return null; }
+    try { return JSON.parse(localStorage.getItem(saveKey())); } catch(e) { return null; }
 }
-
-function clearProgress() {
-    try { localStorage.removeItem(saveKey()); } catch(e) {}
-}
-
-function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-}
-
-function fireAbort() {
-    if (!examStarted || abortLogged) return;
-    const answeredCount = answers.filter(a => a && a.trim() && a !== "[NO RESPONSE RECORDED]").length;
-    if (answeredCount === 0 && secondsLeft > (TIME_LIMIT - 10)) return;
-    abortLogged = true;
-    saveProgress();
-    try {
-        fetch(WORKER_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                type: "ABORT_EXAM_LOG",
-                discordUsername: window.dUser?.username || "Unknown",
-                discordId: window.dUser?.id || "Unknown",
-                answeredCount
-            }),
-            keepalive: true
-        });
-    } catch(e) {}
-}
-
-window.addEventListener('beforeunload', () => { fireAbort(); });
-window.addEventListener('pagehide', () => { fireAbort(); });
-document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') { fireAbort(); }
-});
 
 function buildSegTracker(total) {
     const tracker = document.getElementById('segTracker');
@@ -178,38 +122,23 @@ function buildSegTracker(total) {
         const b = document.createElement('div');
         b.className = 'seg-block';
         b.id = `seg-${i}`;
-        b.onclick = () => jumpToQuestion(i);
         tracker.appendChild(b);
     }
 }
 
 function updateSegTracker() {
-    if (!mainQuestions.length) return;
     mainQuestions.forEach((_, i) => {
         const b = document.getElementById(`seg-${i}`);
         if (!b) return;
         b.className = 'seg-block';
-        const isAnswered = answers[i] && answers[i].trim() && answers[i] !== "No response provided.";
-        
-        if (isAnswered) b.classList.add('filled');
+        if (answers[i] && answers[i].trim()) b.classList.add('filled');
         if (i === current) b.classList.add('current');
-        
-        if (isAnswered && i !== current) {
-            b.style.cursor = 'not-allowed';
-            b.style.pointerEvents = 'none';
-            b.onclick = null;
-        } else {
-            b.style.cursor = 'pointer';
-            b.style.pointerEvents = 'auto';
-            b.onclick = () => jumpToQuestion(i);
-        }
     });
 }
 
 function typeText(el, text, speed) {
     clearInterval(typeInterval); el.innerHTML = ''; let i = 0;
-    const cursor = document.createElement('span');
-    cursor.className = 'typewriter-cursor';
+    const cursor = document.createElement('span'); cursor.className = 'typewriter-cursor';
     el.appendChild(cursor);
     typeInterval = setInterval(() => {
         if (i < text.length) { el.insertBefore(document.createTextNode(text[i]), cursor); i++; }
@@ -221,266 +150,131 @@ function loginDiscord() {
     window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`;
 }
 
-function formatCooldown(ms) {
-    const totalSecs = Math.ceil(ms / 1000);
-    const h = Math.floor(totalSecs / 3600);
-    const m = Math.floor((totalSecs % 3600) / 60);
-    const s = totalSecs % 60;
-    if (h > 0) return `${h}h ${m}m`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-}
-
-function showError(title, lines) {
-    document.getElementById('question').innerHTML = `
-        <div style="text-align:center;">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#ff3a3a;margin-bottom:10px;">${title}</div>
-            <div style="font-size:13px;color:#99b4c0;line-height:1.8;">${lines}</div>
-        </div>`;
-}
-
 async function showInstructions() {
-    document.getElementById('notice').innerHTML = `<span class="glow-text">Discord Verified</span><br>${window.dUser.username} · <span style="color:#ff69b4;font-family:monospace;">${window.dUser.id}</span>`;
-    document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:13px;">Checking eligibility...</div>`;
-
     const [cooldownRes, rankRes] = await Promise.all([
         fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
         fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
     ]);
-
     const cooldown = await cooldownRes.json();
     const rankData = await rankRes.json();
-
     if (cooldown.onCooldown) {
-        let remaining = cooldown.remainingMs;
-        showError("⏳ COOLDOWN ACTIVE", `You have already submitted an exam recently.<br>You may retake in <span style="color:#ff69b4;font-weight:700;" id="cdTimer">${formatCooldown(remaining)}</span>.`);
-        const cdInterval = setInterval(() => {
-            remaining -= 1000;
-            const el = document.getElementById('cdTimer');
-            if (!el) { clearInterval(cdInterval); return; }
-            if (remaining <= 0) { clearInterval(cdInterval); el.innerText = "now — please refresh."; return; }
-            el.innerText = formatCooldown(remaining);
-        }, 1000);
+        document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>COOLDOWN ACTIVE</div>`;
         return;
     }
-
     if (!rankData.eligible) {
-        if (rankData.reason === "NOT_VERIFIED") {
-            showError("⛔ NOT VERIFIED", `Your Discord account is not linked to a Roblox account.<br>Please verify with <span style="color:#00dcff;font-weight:600;">Bloxlink</span> in the server first.`);
-        } else if (rankData.reason === "RANK_TOO_LOW") {
-            showError("⛔ INELIGIBLE", `You do not meet the rank requirement to take this exam.<br>Required: <span style="color:#00dcff;font-weight:600;">Rank 30+</span>`);
-        } else {
-            showError("⚠️ VERIFICATION ERROR", `Could not verify your Roblox group rank.<br>Please try again later.`);
-        }
+        document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>INELIGIBLE: RANK 30+ REQUIRED</div>`;
         return;
     }
-
     window.rUser = rankData.robloxId;
-
     const saved = loadProgress();
-    const hasSave = saved && saved.questions && saved.questions.length > 0;
-
-    const resumeBlock = hasSave ? `
-        <div style="background:rgba(255,105,180,0.08);border:1px solid rgba(255,105,180,0.3);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:#ffb3d9;text-align:center;">
-            ⚠️ <strong>Saved progress found</strong><br>
-            ${saved.answers.filter(a => a && a.trim()).length}/${saved.questions.length} answered · ${Math.floor(saved.secondsLeft/60)}m ${saved.secondsLeft%60}s remaining
-            <div style="display:flex;gap:8px;margin-top:10px;">
-                <button class="action-btn" onclick="resumeExam()" style="border-color:#ff69b4;color:#ff69b4;padding:10px;">▶ Resume</button>
-                <button class="action-btn" onclick="clearProgressAndStart()" style="padding:10px;font-size:11px;opacity:0.6;">Start Fresh</button>
-            </div>
-        </div>` : '';
-
     document.getElementById('question').innerHTML = `
         <div style="text-align:left;width:100%;">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;text-align:center;">Congratulations, Manager on Trial</div>
-            <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;">You've made it to <span style="color:#00dcff;font-weight:600;">Phase 4</span> of The Management Program. This written assessment is designed to evaluate the knowledge and judgment you've developed throughout your time.</div>
-            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
-                <div class="info-pill cyan">📖 <span style="color:#fff;font-weight:500;">Open Book</span> — You may reference any materials during this exam.</div>
-                <div class="info-pill pink">⏱ <span style="color:#fff;font-weight:500;">50 Minutes Total</span> — You have 50 minutes to complete the entire exam.</div>
-                <div class="info-pill cyan">📝 <span style="color:#fff;font-weight:500;">Navigation</span> — Click the blocks at the top to skip between questions.</div>
-            </div>
-            ${resumeBlock}
-            ${!hasSave ? `<button class="action-btn" onclick="startExam()">Begin Examination</button>` : ''}
+            <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4 WRITTEN ASSESSMENT</div>
+            <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;">This is an open-book exam. You have 50 minutes. Your timer starts once you begin and cannot be reset.</div>
+            ${saved ? `<button class="action-btn" onclick="resumeExam()" style="margin-bottom:8px;">Resume Examination</button>` : ''}
+            <button class="action-btn" onclick="startExam()">Begin Examination</button>
         </div>`;
 }
-
-window.onload = () => {
-    const hashParams = new URLSearchParams(window.location.hash.slice(1));
-    const dToken = hashParams.get('access_token');
-    if (dToken) {
-        document.getElementById('question').innerHTML = `<div class="glow-text">Verifying Discord...</div>`;
-        fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${dToken}` } })
-        .then(res => res.json())
-        .then(user => { window.dUser = user; showInstructions(); })
-        .catch(() => {
-            document.getElementById('notice').innerHTML = `<span style="color:red;">Verification Failed</span><br>Please try again.`;
-            document.getElementById('question').innerHTML = `<button class="action-btn" onclick="loginDiscord()">Try Again</button>`;
-        });
-    }
-};
 
 async function startExam() {
     const res = await fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
     const data = await res.json();
-    mainQuestions = shuffle([...data.questions]);
+    const logRes = await fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username })});
+    const logData = await logRes.json();
+    
+    mainQuestions = data.questions;
     timedOut = new Array(mainQuestions.length).fill(false);
     answers = new Array(mainQuestions.length).fill("");
-    current = 0; secondsLeft = TIME_LIMIT; examStarted = true;
-    buildSegTracker(mainQuestions.length);
-    document.getElementById('notice').style.display = 'none';
-    document.getElementById('input-area').style.display = 'flex';
-    startGlobalTimer();
-    startAutoSave();
-    await fetch(WORKER_URL, {
-        method: "POST",
-        body: JSON.stringify({ type: "START_EXAM_LOG", robloxId: window.rUser, discordUsername: window.dUser?.username, discordId: window.dUser?.id })
-    }).catch(() => {});
-    abortLogged = false;
-    loadQuestion(true);
-}
-
-function clearProgressAndStart() { clearProgress(); startExam(); }
-
-function resumeExam() {
-    const saved = loadProgress();
-    if (!saved) return startExam();
-    mainQuestions = saved.questions;
-    answers = saved.answers || [];
-    timedOut = saved.timedOut || new Array(mainQuestions.length).fill(false);
-    current = saved.current || 0;
-    secondsLeft = saved.secondsLeft ?? TIME_LIMIT;
-    window.rUser = saved.rUser || window.rUser;
+    
+    const elapsed = Math.floor((Date.now() - logData.startTime) / 1000);
+    secondsLeft = Math.max(0, 3000 - elapsed);
+    
     examStarted = true;
     buildSegTracker(mainQuestions.length);
     document.getElementById('notice').style.display = 'none';
     document.getElementById('input-area').style.display = 'flex';
     startGlobalTimer();
-    startAutoSave();
-    fetch(WORKER_URL, {
-        method: "POST",
-        body: JSON.stringify({ type: "START_EXAM_LOG", robloxId: window.rUser, discordUsername: window.dUser?.username, discordId: window.dUser?.id })
-    }).catch(() => {});
-    setTimeout(() => { abortLogged = false; }, 1000);
     loadQuestion(true);
 }
 
-function startAutoSave() {
-    clearInterval(autoSaveInterval);
-    autoSaveInterval = setInterval(() => { if (examStarted) saveProgress(); }, 10000);
+function resumeExam() {
+    const saved = loadProgress();
+    mainQuestions = saved.questions;
+    answers = saved.answers;
+    current = saved.current;
+    startExam();
 }
 
 function startGlobalTimer() {
     const timerEl = document.getElementById('timer');
     timerEl.style.display = 'block';
-    timerEl.classList.remove('danger');
-    timerEl.innerText = `⏱ ${Math.floor(secondsLeft/60)}:${(secondsLeft%60).toString().padStart(2,'0')}`;
     timerInterval = setInterval(() => {
         secondsLeft--;
         const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
         timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
         if (secondsLeft <= 300) timerEl.classList.add('danger');
-        if (secondsLeft <= 0) {
-            clearInterval(timerInterval); clearInterval(autoSaveInterval);
-            for (let i = 0; i < mainQuestions.length; i++) {
-                if (!answers[i] || !answers[i].trim()) { timedOut[i] = true; answers[i] = "[NO RESPONSE RECORDED]"; }
-            }
-            showReview();
-        }
+        if (secondsLeft <= 0) { clearInterval(timerInterval); showReview(); }
     }, 1000);
 }
 
-function transitionTo(fn) {
-    const card = document.getElementById('question');
-    card.classList.add('fade-out');
-    setTimeout(() => { card.classList.remove('fade-out'); fn(); card.classList.add('fade-in'); setTimeout(() => card.classList.remove('fade-in'), 300); }, 200);
-}
-
 function loadQuestion(instant) {
-    const load = () => {
-        const qContainer = document.getElementById('question');
-        const answerEl = document.getElementById('answer');
-        document.getElementById('progress').innerText = `QUESTION ${current + 1} / ${mainQuestions.length}`;
-        updateSegTracker();
-        answerEl.value = answers[current] || '';
-        answerEl.placeholder = "Type answer here...";
-        typeText(qContainer, mainQuestions[current], 14);
-        answerEl.focus();
-    };
-    if (instant) { load(); } else { transitionTo(load); }
-}
-
-function jumpToQuestion(index) {
-    if (!examStarted) return;
-    if (index !== current && answers[index] && answers[index].trim()) return;
-    
-    answers[current] = document.getElementById('answer').value.trim();
-    current = index;
-    saveProgress();
-    loadQuestion(false);
+    document.getElementById('progress').innerText = `QUESTION ${current + 1} / ${mainQuestions.length}`;
+    updateSegTracker();
+    const answerEl = document.getElementById('answer');
+    answerEl.value = answers[current] || '';
+    typeText(document.getElementById('question'), mainQuestions[current], 14);
 }
 
 function saveAndNext() {
-    clearInterval(typeInterval);
-    const answerEl = document.getElementById('answer');
-    answers[current] = answerEl.value.trim();
+    answers[current] = document.getElementById('answer').value.trim();
     if (current < mainQuestions.length - 1) {
         current++;
         saveProgress();
         loadQuestion(false);
     } else {
-        saveProgress();
-        updateSegTracker();
         showReview();
     }
 }
 
 function showReview() {
-    if (examStarted) answers[current] = document.getElementById('answer').value.trim();
     examStarted = false;
-    clearInterval(typeInterval); clearInterval(timerInterval); clearInterval(autoSaveInterval);
-    document.getElementById('timer').style.display = 'none';
+    clearInterval(timerInterval);
     document.getElementById('input-area').style.display = 'none';
-    document.getElementById('progress').innerText = "Final Review";
-    document.getElementById('segTracker').innerHTML = '';
-    let html = `<div class="review-container">`;
+    let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;">`;
     mainQuestions.forEach((q, i) => {
-        const to = timedOut[i];
-        const displayAns = (answers[i] && answers[i].trim()) ? answers[i] : "[NO RESPONSE]";
-        html += `<div class="review-item${to ? ' timed-out' : ''}">
-            <div class="review-q${to ? ' timed-out' : ''}">Question ${i+1}${to ? ' — [TIMED OUT]' : ''}</div>
-            <div class="review-a${to ? ' timed-out' : ''}">${displayAns}</div>
-        </div>`;
+        html += `<div style="border-bottom:1px solid #333;padding:8px 0;"><div style="font-size:10px;color:#00dcff;">Q${i+1}</div><div style="font-size:12px;">${answers[i] || '[EMPTY]'}</div></div>`;
     });
-    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px;border-color:#ff69b4;color:#ff69b4;">Submit Final Exam</button>`;
-    transitionTo(() => { document.getElementById('question').innerHTML = html; });
+    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px;">Final Submission</button>`;
+    document.getElementById('question').innerHTML = html;
 }
 
 async function finalSubmit() {
-    transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text">Transmitting Answers...</div>`; });
-    let content = `**Roblox ID**: ${window.rUser}\n**Discord User**: ${window.dUser?.username}\n**Discord ID**: ${window.dUser?.id}\n\n`;
-    mainQuestions.forEach((q, i) => {
-        const status = timedOut[i] ? " [TIMED OUT]" : "";
-        const finalAns = (answers[i] && answers[i].trim()) ? answers[i] : "No response provided.";
-        content += `**Q${i+1}${status}:** ${q}\n> ${finalAns}\n\n`;
-    });
-    abortLogged = true;
-    const res = await fetch(WORKER_URL, {
+    document.getElementById('question').innerHTML = "Transmitting...";
+    let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
+    mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
+    
+    await fetch(WORKER_URL, {
         method: "POST",
         body: JSON.stringify({
-            username: window.rUser, content,
-            avatar: `https://cdn.discordapp.com/avatars/${window.dUser.id}/${window.dUser.avatar}.png`,
-            discordId: window.dUser?.id,
-            discordUsername: window.dUser?.username,
+            discordId: window.dUser.id,
+            username: window.rUser,
+            discordUsername: window.dUser.username,
+            content,
             secondsLeft
         })
     });
-    if (res.status === 429) {
-        transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="color:#ff3a3a;">⛔ Submission Rejected</div><div style="color:#99b4c0;font-size:13px;margin-top:10px;">Cooldown in effect.</div>`; });
-        return;
-    }
-    clearProgress();
-    transitionTo(() => { document.getElementById('question').innerHTML = `<div class="glow-text" style="font-size:24px;">✅ Submission Received</div>`; });
+    localStorage.removeItem(saveKey());
+    document.getElementById('question').innerHTML = "SUBMITTED SUCCESSFULLY";
 }
+
+window.onload = () => {
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const token = hash.get('access_token');
+    if (token) {
+        fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => res.json()).then(user => { window.dUser = user; showInstructions(); });
+    }
+};
 </script>
 </body>
 </html>
