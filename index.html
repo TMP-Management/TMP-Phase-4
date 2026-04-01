@@ -90,7 +90,7 @@ const TIME_LIMIT = 3000;
 
 let current = 0, answers = [], timerInterval = null, secondsLeft = TIME_LIMIT;
 let examStarted = false, mainQuestions = [], reviewMode = false;
-window.dUser = null; window.rUser = null;
+window.dUser = null; window.rUser = null; window.startTimeVal = null;
 
 window.addEventListener('keyup', async (e) => {
   if (e.key === 'PrintScreen') {
@@ -179,9 +179,13 @@ async function startExam() {
   const logData = await logRes.json();
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
-  const startTimeVal = Number(logData.startTime) || Date.now();
-  const elapsed = Math.floor((Date.now() - startTimeVal) / 1000);
-  secondsLeft = Math.max(0, 3000 - elapsed);
+  window.startTimeVal = Number(logData.startTime) || Date.now();
+  const elapsed = Math.floor((Date.now() - window.startTimeVal) / 1000);
+  secondsLeft = Math.max(0, TIME_LIMIT - elapsed);
+  if (secondsLeft <= 0) {
+    showReview();
+    return;
+  }
   examStarted = true;
   buildSegTracker(mainQuestions.length);
   document.getElementById('notice').style.display = 'none';
@@ -194,17 +198,24 @@ function startGlobalTimer() {
   if (timerInterval) clearInterval(timerInterval);
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
-  timerInterval = setInterval(() => {
-    secondsLeft--;
+  
+  const updateTimer = () => {
+    const elapsed = Math.floor((Date.now() - window.startTimeVal) / 1000);
+    secondsLeft = Math.max(0, TIME_LIMIT - elapsed);
+    
     if (secondsLeft <= 0) {
-      secondsLeft = 0;
       clearInterval(timerInterval);
-      showReview();
+      if (!reviewMode) showReview();
+      return;
     }
+    
     const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
-  }, 1000);
+  };
+
+  updateTimer();
+  timerInterval = setInterval(updateTimer, 1000);
 }
 
 function loadQuestion() {
@@ -240,8 +251,13 @@ async function finalSubmit() {
   document.getElementById('question').innerHTML = "Submitting...";
   let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
   mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
-  await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
-  document.getElementById('question').innerHTML = "Submitted successfully.";
+  const submitRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
+  if (submitRes.ok) {
+    document.getElementById('question').innerHTML = "Submitted successfully.";
+  } else {
+    const errData = await submitRes.json();
+    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;">Submission failed: ${errData.error || 'Unknown Error'}</div>`;
+  }
 }
 
 window.onload = () => {
