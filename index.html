@@ -147,9 +147,20 @@ function updateSegTracker() {
 }
 
 function jumpToQuestion(i) {
-    answers[current] = document.getElementById('answer').value.trim();
+    if (document.getElementById('input-area').style.display === 'flex') {
+        answers[current] = document.getElementById('answer').value.trim();
+    }
     current = i;
     saveProgress();
+    
+    // Ensure input area is visible if returning from review
+    if (!examStarted && secondsLeft > 0) {
+        examStarted = true;
+        document.getElementById('input-area').style.display = 'flex';
+        // Restart timer display if it was cleared
+        if(!timerInterval) startGlobalTimer(); 
+    }
+    
     loadQuestion();
 }
 
@@ -168,7 +179,7 @@ async function showInstructions() {
     const saved = loadProgress();
     document.getElementById('question').innerHTML = `
         <div style="text-align:left;width:100%;">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4 CLEARANCE GRANTED</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4</div>
             <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div>
             ${saved ? `<button class="action-btn" onclick="resumeExam()" style="margin-bottom:8px; border-color:#ff69b4; color:#ff69b4;">Resume Exam</button>` : ''}
             <button class="action-btn" onclick="startExam()">Begin Exam</button>
@@ -181,14 +192,14 @@ async function startExam() {
     const logRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) });
     const logData = await logRes.json();
     mainQuestions = data.questions;
-    answers = new Array(mainQuestions.length).fill("");
+    if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
     const elapsed = Math.floor((Date.now() - logData.startTime) / 1000);
     secondsLeft = Math.max(0, 3000 - elapsed);
     examStarted = true;
     buildSegTracker(mainQuestions.length);
     document.getElementById('notice').style.display = 'none';
     document.getElementById('input-area').style.display = 'flex';
-    startGlobalTimer();
+    if(!timerInterval) startGlobalTimer();
     loadQuestion();
 }
 
@@ -219,15 +230,22 @@ function saveAndNext() {
 }
 
 function showReview() {
-    examStarted = false; clearInterval(timerInterval);
+    examStarted = false; 
+    // We don't clear the interval so the timer keeps running in the background until final submission
     document.getElementById('input-area').style.display = 'none';
     let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
     mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
-    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px; border-color:#ff69b4; color:#ff69b4;">Submit Exam</button>`;
+    html += `</div>
+    <div style="display:flex;gap:10px;width:100%;margin-top:15px;">
+        <button class="action-btn" onclick="startExam()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button>
+        <button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button>
+    </div>`;
     document.getElementById('question').innerHTML = html;
 }
 
 async function finalSubmit() {
+    examStarted = false;
+    clearInterval(timerInterval);
     document.getElementById('question').innerHTML = "Submitting...";
     let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
     mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
