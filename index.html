@@ -203,7 +203,18 @@ async function startExam() {
     loadQuestion();
 }
 
-function resumeExam() { const saved = loadProgress(); mainQuestions = saved.questions; answers = saved.answers; current = saved.current; startExam(); }
+function resumeExam() {
+  const saved = loadProgress();
+  mainQuestions = saved.questions;
+  answers = saved.answers;
+  current = saved.current;
+  examStarted = true;
+  buildSegTracker(mainQuestions.length);
+  document.getElementById('notice').style.display = 'none';
+  document.getElementById('input-area').style.display = 'flex';
+  if (!timerInterval) startGlobalTimer();
+  loadQuestion();
+}
 
 function startGlobalTimer() {
     const timerEl = document.getElementById('timer');
