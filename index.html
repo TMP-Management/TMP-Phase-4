@@ -43,6 +43,16 @@
   .action-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,220,255,0.5); background: rgba(0,220,255,0.1); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
   .action-btn:hover { background: linear-gradient(90deg, #ff69b4, #00dcff); color: #000; }
   .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 15px; letter-spacing: 2px; }
+  .loading-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(0,220,255,0.2); border-top-color: #00dcff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; width: 100%; }
+  .info-tile { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 14px; text-align: left; }
+  .info-tile-label { font-size: 11px; color: #667; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .info-tile-value { font-family: 'Rajdhani', sans-serif; font-size: 17px; font-weight: 700; color: #00dcff; }
+  .rule-list { width: 100%; text-align: left; margin-bottom: 18px; }
+  .rule-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: #b0c8d4; line-height: 1.5; }
+  .rule-item:last-child { border-bottom: none; }
+  .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff69b4; margin-top: 6px; flex-shrink: 0; }
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -73,7 +83,7 @@
       <button class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
     </div>
     <div id="input-area">
-      <textarea id="answer" placeholder="Type your answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveAndNext();}"></textarea>
+      <textarea id="answer" placeholder="Type your answer here..."></textarea>
       <div class="btn-row" style="display:flex;gap:10px;width:100%;">
         <button class="action-btn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Review</button>
         <button class="action-btn" onclick="saveAndNext()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit</button>
@@ -88,6 +98,7 @@ const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
 let current = 0, answers = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
+let timerStartEpoch = null;
 window.dUser = null; window.rUser = null;
 
 window.addEventListener('keyup', async (e) => {
@@ -102,6 +113,16 @@ window.addEventListener('keyup', async (e) => {
     } catch(e) {}
     document.body.innerHTML = `<div style="background:#0a0a0a; color:#ff3a3a; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:'Rajdhani'; text-align:center;"><h1 style="font-size:40px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;">Unauthorized Screen Capture Attempt Recorded.</p></div>`;
   }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const answerEl = document.getElementById('answer');
+  answerEl.addEventListener('paste', e => e.preventDefault());
+  answerEl.addEventListener('copy', e => e.preventDefault());
+  answerEl.addEventListener('cut', e => e.preventDefault());
+  answerEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); }
+  });
 });
 
 window.addEventListener('blur', () => { if (examStarted) { document.getElementById('main-content').classList.add('blur-shield'); document.getElementById('overlay').classList.add('active'); } });
@@ -142,6 +163,7 @@ function jumpToQuestion(i) {
 function loginDiscord() { window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`; }
 
 async function showInstructions() {
+  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:13px;"><span class="loading-spinner"></span>Checking access...</div>`;
   const [cooldownRes, rankRes] = await Promise.all([
     fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
     fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
@@ -151,17 +173,50 @@ async function showInstructions() {
   if (cooldown.onCooldown) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>COOLDOWN ACTIVE</div>`; return; }
   if (!rankData.eligible) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>UNAUTHORIZED RANK</div>`; return; }
   window.rUser = rankData.robloxId;
-  document.getElementById('question').innerHTML = `<div style="text-align:left;width:100%;"><div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4</div><div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div><button class="action-btn" onclick="startExam()">Begin Exam</button></div>`;
+
+  document.getElementById('notice').style.display = 'none';
+  document.getElementById('question').innerHTML = `
+    <div style="width:100%;">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:18px;letter-spacing:1px;">Phase 4 — Written Exam</div>
+      <div class="instructions-grid">
+        <div class="info-tile">
+          <div class="info-tile-label">Time Limit</div>
+          <div class="info-tile-value">50 minutes</div>
+        </div>
+        <div class="info-tile">
+          <div class="info-tile-label">Questions</div>
+          <div class="info-tile-value">19 questions</div>
+        </div>
+        <div class="info-tile">
+          <div class="info-tile-label">Book Policy</div>
+          <div class="info-tile-value" style="color:#ff69b4;">Open book</div>
+        </div>
+        <div class="info-tile">
+          <div class="info-tile-label">Attempts</div>
+          <div class="info-tile-value" style="color:#ff69b4;">1 per 24h</div>
+        </div>
+      </div>
+      <div class="rule-list">
+        <div class="rule-item"><div class="rule-dot"></div>The timer starts when you click Begin and cannot be paused or reset.</div>
+        <div class="rule-item"><div class="rule-dot"></div>You can jump between questions freely using the progress bar at the top.</div>
+        <div class="rule-item"><div class="rule-dot"></div>Copying and pasting text into answers is not allowed.</div>
+        <div class="rule-item"><div class="rule-dot"></div>Switching tabs will blur the exam. Your answers are saved.</div>
+      </div>
+      <button class="action-btn" onclick="startExam()" style="border-color:#ff69b4;color:#ff69b4;">Begin Exam</button>
+    </div>`;
 }
 
-function startGlobalTimer(perfStart, serverSeconds) {
+function startGlobalTimer(serverSeconds) {
   if (timerInterval) clearInterval(timerInterval);
+  timerStartEpoch = Date.now();
+  const totalSeconds = serverSeconds;
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
   const tick = () => {
-    const elapsed = Math.floor((performance.now() - perfStart) / 1000);
-    secondsLeft = Math.floor(serverSeconds - elapsed);
+    const elapsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
+    secondsLeft = totalSeconds - elapsed;
     if (secondsLeft <= 0) {
+      secondsLeft = 0;
       clearInterval(timerInterval);
       timerEl.innerText = "⏱ 0:00";
       if (!reviewMode) showReview();
@@ -178,20 +233,21 @@ function startGlobalTimer(perfStart, serverSeconds) {
 
 async function startExam() {
   reviewMode = false;
-  const res = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
-  const data = await res.json();
-  const logRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) });
+  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:13px;"><span class="loading-spinner"></span>Loading exam...</div>`;
+  const [questRes, logRes] = await Promise.all([
+    fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) }),
+    fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) })
+  ]);
+  const data = await questRes.json();
   const logData = await logRes.json();
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
   const serverSeconds = Math.floor(Number(logData.secondsLeft));
-  const perfStart = performance.now();
   if (serverSeconds <= 0) { showReview(); return; }
   examStarted = true;
   buildSegTracker(mainQuestions.length);
-  document.getElementById('notice').style.display = 'none';
   document.getElementById('input-area').style.display = 'flex';
-  startGlobalTimer(perfStart, serverSeconds);
+  startGlobalTimer(serverSeconds);
   loadQuestion();
 }
 
@@ -213,8 +269,16 @@ function showReview() {
   updateSegTracker();
   let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
   mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
-  html += `</div><div style="display:flex;gap:10px;width:100%;margin-top:15px;"><button class="action-btn" onclick="startExam()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button><button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button></div>`;
+  html += `</div><div style="display:flex;gap:10px;width:100%;margin-top:15px;">`;
+  if (examStarted) { html += `<button class="action-btn" onclick="resumeFromReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button>`; }
+  html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button></div>`;
   document.getElementById('question').innerHTML = html;
+}
+
+function resumeFromReview() {
+  reviewMode = false;
+  document.getElementById('input-area').style.display = 'flex';
+  loadQuestion();
 }
 
 async function finalSubmit() {
@@ -226,14 +290,14 @@ async function finalSubmit() {
   if (submitRes.ok) { document.getElementById('question').innerHTML = "Submitted successfully."; }
 }
 
-window.onload = () => {
+document.addEventListener('DOMContentLoaded', () => {
   const hash = new URLSearchParams(window.location.hash.slice(1));
   const token = hash.get('access_token');
   if (token) {
     fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
     .then(res => res.json()).then(user => { window.dUser = user; showInstructions(); });
   }
-};
+});
 </script>
 </body>
 </html>
