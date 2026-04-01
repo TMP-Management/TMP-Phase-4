@@ -53,6 +53,30 @@
   .rule-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: #b0c8d4; line-height: 1.5; }
   .rule-item:last-child { border-bottom: none; }
   .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff69b4; margin-top: 6px; flex-shrink: 0; }
+  .review-header { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; letter-spacing: 1px; }
+  .review-subhead { font-size: 12px; color: #667; text-align: center; margin-bottom: 16px; }
+  .review-scroll { max-height: 260px; overflow-y: auto; width: 100%; margin-bottom: 16px; scrollbar-width: thin; scrollbar-color: rgba(255,105,180,0.3) transparent; }
+  .review-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .review-item:last-child { border-bottom: none; }
+  .review-qnum { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; color: #ff69b4; min-width: 28px; padding-top: 1px; }
+  .review-answer { font-size: 12px; color: #b0c8d4; line-height: 1.5; word-break: break-word; }
+  .review-answer.missing { color: #ff3a3a; font-style: italic; }
+  .review-status { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 12px; }
+  .review-stat { display: flex; align-items: center; gap: 6px; }
+  .review-dot-answered { width: 8px; height: 8px; border-radius: 50%; background: #00dcff; }
+  .review-dot-missing { width: 8px; height: 8px; border-radius: 50%; background: #ff3a3a; }
+  .review-header { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; letter-spacing: 1px; }
+  .review-subhead { font-size: 12px; color: #667; text-align: center; margin-bottom: 16px; }
+  .review-scroll { max-height: 260px; overflow-y: auto; width: 100%; margin-bottom: 16px; scrollbar-width: thin; scrollbar-color: rgba(255,105,180,0.3) transparent; }
+  .review-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .review-item:last-child { border-bottom: none; }
+  .review-qnum { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; color: #ff69b4; min-width: 28px; padding-top: 1px; }
+  .review-answer { font-size: 12px; color: #b0c8d4; line-height: 1.5; word-break: break-word; }
+  .review-answer.missing { color: #ff3a3a; font-style: italic; }
+  .review-status { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 12px; }
+  .review-stat { display: flex; align-items: center; gap: 6px; }
+  .review-dot-answered { width: 8px; height: 8px; border-radius: 50%; background: #00dcff; }
+  .review-dot-missing { width: 8px; height: 8px; border-radius: 50%; background: #ff3a3a; }
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -241,7 +265,8 @@ async function startExam() {
   const data = await questRes.json();
   const logData = await logRes.json();
   mainQuestions = data.questions;
-  if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
+  answers = new Array(mainQuestions.length).fill("");
+  current = 0;
   const serverSeconds = Math.floor(Number(logData.secondsLeft));
   if (serverSeconds <= 0) { showReview(); return; }
   examStarted = true;
@@ -267,11 +292,20 @@ function showReview() {
   reviewMode = true;
   document.getElementById('input-area').style.display = 'none';
   updateSegTracker();
-  let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
-  mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
-  html += `</div><div style="display:flex;gap:10px;width:100%;margin-top:15px;">`;
-  if (examStarted) { html += `<button class="action-btn" onclick="resumeFromReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button>`; }
-  html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button></div>`;
+  const answered = answers.filter(a => a && a.trim()).length;
+  const missing = mainQuestions.length - answered;
+  let html = `<div style="width:100%;">`;
+  html += `<div class="review-header">Review Answers</div>`;
+  html += `<div class="review-subhead">Look over your answers before submitting. You can't change them after.</div>`;
+  html += `<div class="review-status"><div class="review-stat"><div class="review-dot-answered"></div><span style="color:#b0c8d4;">${answered} answered</span></div><div class="review-stat"><div class="review-dot-missing"></div><span style="color:#b0c8d4;">${missing} missing</span></div></div>`;
+  html += `<div class="review-scroll">`;
+  mainQuestions.forEach((q, i) => {
+    const ans = answers[i] && answers[i].trim();
+    html += `<div class="review-item"><div class="review-qnum">Q${i + 1}</div><div class="review-answer ${ans ? '' : 'missing'}">${ans ? ans : 'No answer given'}</div></div>`;
+  });
+  html += `</div><div style="display:flex;gap:10px;width:100%;">`;
+  if (examStarted) { html += `<button class="action-btn" onclick="resumeFromReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Go Back</button>`; }
+  html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button></div></div>`;
   document.getElementById('question').innerHTML = html;
 }
 
@@ -283,11 +317,11 @@ function resumeFromReview() {
 
 async function finalSubmit() {
   reviewMode = true; examStarted = false; clearInterval(timerInterval);
-  document.getElementById('question').innerHTML = "Submitting...";
+  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:13px;"><span class="loading-spinner"></span>Submitting...</div>`;
   let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
   mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
   const submitRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
-  if (submitRes.ok) { document.getElementById('question').innerHTML = "Submitted successfully."; }
+  if (submitRes.ok) { document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#00dcff;margin-bottom:8px;">Submitted</div><div style="font-size:13px;color:#b0c8d4;">Your exam has been sent for review. You'll hear back via Discord.</div></div>`; }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -297,6 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
     fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
     .then(res => res.json()).then(user => { window.dUser = user; showInstructions(); });
   }
+});
+
+window.addEventListener('beforeunload', () => {
+  if (!examStarted) return;
+  const payload = JSON.stringify({ type: "EXAM_ABANDONED", discordId: window.dUser?.id, discordUsername: window.dUser?.username, robloxId: window.rUser, secondsLeft });
+  navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'application/json' }));
 });
 </script>
 </body>
