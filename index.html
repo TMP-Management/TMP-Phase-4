@@ -89,7 +89,7 @@ const REDIRECT = window.location.href.split('#')[0];
 const TIME_LIMIT = 3000;
 
 let current = 0, answers = [], timerInterval = null, secondsLeft = TIME_LIMIT;
-let examStarted = false, mainQuestions = [];
+let examStarted = false, mainQuestions = [], reviewMode = false;
 window.dUser = null; window.rUser = null;
 
 window.addEventListener('keyup', async (e) => {
@@ -130,25 +130,29 @@ function updateSegTracker() {
     const b = document.getElementById(`seg-${i}`);
     if (!b) return;
     b.className = 'seg-block';
-    if (examStarted) b.classList.add('clickable');
+    if (examStarted && !reviewMode) {
+      b.classList.add('clickable');
+      b.onclick = () => jumpToQuestion(i);
+    } else {
+      b.classList.remove('clickable');
+      b.onclick = null;
+    }
     if (answers[i] && answers[i].trim()) b.classList.add('filled');
     if (i === current) b.classList.add('current');
-    b.onclick = examStarted ? () => jumpToQuestion(i) : null;
   });
 }
 
 function jumpToQuestion(i) {
+  if (reviewMode) return;
   if (document.getElementById('input-area').style.display === 'flex') {
     answers[current] = document.getElementById('answer').value.trim();
   }
   current = i;
-  
   if (!examStarted && secondsLeft > 0) {
     examStarted = true;
     document.getElementById('input-area').style.display = 'flex';
     if(!timerInterval) startGlobalTimer(); 
   }
-  
   loadQuestion();
 }
 
@@ -173,16 +177,15 @@ async function showInstructions() {
 }
 
 async function startExam() {
+  reviewMode = false;
   const res = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
   const data = await res.json();
   const logRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) });
   const logData = await logRes.json();
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
-  
   const startTimeVal = Number(logData.startTime) || Date.now();
   const elapsed = Math.floor((Date.now() - startTimeVal) / 1000);
-  
   secondsLeft = Math.max(0, 3000 - elapsed);
   examStarted = true;
   buildSegTracker(mainQuestions.length);
@@ -217,8 +220,9 @@ function saveAndNext() {
 }
 
 function showReview() {
-  examStarted = false; 
+  reviewMode = true;
   document.getElementById('input-area').style.display = 'none';
+  updateSegTracker();
   let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
   mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
   html += `</div>
@@ -230,6 +234,7 @@ function showReview() {
 }
 
 async function finalSubmit() {
+  reviewMode = true;
   examStarted = false;
   clearInterval(timerInterval);
   document.getElementById('question').innerHTML = "Submitting...";
