@@ -143,11 +143,9 @@ function jumpToQuestion(i) {
   }
   current = i;
   
-  // Ensure input area is visible if returning from review
   if (!examStarted && secondsLeft > 0) {
     examStarted = true;
     document.getElementById('input-area').style.display = 'flex';
-    // Restart timer display if it was cleared
     if(!timerInterval) startGlobalTimer(); 
   }
   
@@ -181,7 +179,10 @@ async function startExam() {
   const logData = await logRes.json();
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
-  const elapsed = Math.floor((Date.now() - logData.startTime) / 1000);
+  
+  const startTimeVal = Number(logData.startTime) || Date.now();
+  const elapsed = Math.floor((Date.now() - startTimeVal) / 1000);
+  
   secondsLeft = Math.max(0, 3000 - elapsed);
   examStarted = true;
   buildSegTracker(mainQuestions.length);
