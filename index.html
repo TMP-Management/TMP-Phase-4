@@ -148,11 +148,6 @@ function jumpToQuestion(i) {
     answers[current] = document.getElementById('answer').value.trim();
   }
   current = i;
-  if (!examStarted && secondsLeft > 0) {
-    examStarted = true;
-    document.getElementById('input-area').style.display = 'flex';
-    if(!timerInterval) startGlobalTimer(); 
-  }
   loadQuestion();
 }
 
@@ -191,19 +186,24 @@ async function startExam() {
   buildSegTracker(mainQuestions.length);
   document.getElementById('notice').style.display = 'none';
   document.getElementById('input-area').style.display = 'flex';
-  if(!timerInterval) startGlobalTimer();
+  startGlobalTimer();
   loadQuestion();
 }
 
 function startGlobalTimer() {
+  if (timerInterval) clearInterval(timerInterval);
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
   timerInterval = setInterval(() => {
     secondsLeft--;
+    if (secondsLeft <= 0) {
+      secondsLeft = 0;
+      clearInterval(timerInterval);
+      showReview();
+    }
     const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
-    if (secondsLeft <= 0) { clearInterval(timerInterval); showReview(); }
   }, 1000);
 }
 
