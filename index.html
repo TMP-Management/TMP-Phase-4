@@ -179,7 +179,7 @@ async function startExam() {
   mainQuestions = data.questions;
   if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
   
-  const serverSeconds = Number(logData.secondsLeft);
+  const serverSeconds = Math.floor(Number(logData.secondsLeft));
   const perfStart = performance.now();
   
   secondsLeft = serverSeconds;
@@ -203,7 +203,7 @@ function startGlobalTimer(perfStart, serverSeconds) {
   
   const updateTimer = () => {
     const elapsed = Math.floor((performance.now() - perfStart) / 1000);
-    secondsLeft = Math.max(0, serverSeconds - elapsed);
+    secondsLeft = Math.floor(Math.max(0, serverSeconds - elapsed));
     
     if (secondsLeft <= 0) {
       clearInterval(timerInterval);
