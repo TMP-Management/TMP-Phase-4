@@ -101,7 +101,7 @@
         <button class="action-btn" onclick="saveAndNext()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Next</button>
       </div>
     </div>
-    <div class="credit-text">SYSTEM DESIGN BY FAEVYNL</div>
+    <div class="credit-text">CREATED BY FAEVYNL</div>
   </div>
 </div>
 <script>
@@ -111,12 +111,31 @@ const REDIRECT = window.location.href.split('#')[0];
 let current = 0, answers = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
-window.dUser = null; window.rUser = null;
+window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
 function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
 }
 
+// Fixed: Discovered some firewalls/payload methods fail to send on unload
+async function logSecurityEvent(type) {
+  if (!examStarted || submitted) return;
+  try {
+    await fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        type: type, 
+        discordId: window.dUser?.id, 
+        discordUsername: window.dUser?.username,
+        robloxId: window.rUser,
+        username: window.rUsername
+      })
+    });
+  } catch(err) {}
+}
+
+// Switched from sendBeacon to standard fetch keepalive (the replacement standard)
 function sendAbandonBeacon() {
   if (!examStarted || submitted) return;
   const answered = getAnsweredCount();
@@ -125,36 +144,49 @@ function sendAbandonBeacon() {
     discordId: window.dUser?.id,
     discordUsername: window.dUser?.username,
     robloxId: window.rUser,
+    username: window.rUsername,
     secondsLeft,
     answeredCount: answered,
     totalCount: mainQuestions.length
   });
-  navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'application/json' }));
+  
+  fetch(WORKER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+    keepalive: true
+  });
 }
 
 window.addEventListener('beforeunload', sendAbandonBeacon);
 
+// Fixed: Visibility alone missed when users clicked off to other apps (like Discord)
+window.addEventListener('blur', () => {
+  if (!examStarted || submitted) return;
+  document.getElementById('main-content').classList.add('blur-shield');
+  document.getElementById('overlay').classList.add('active');
+  logSecurityEvent("BLUR_EVENT");
+});
+
+window.addEventListener('focus', () => {
+  if (!examStarted || submitted) return;
+  document.getElementById('main-content').classList.remove('blur-shield');
+  document.getElementById('overlay').classList.remove('active');
+});
+
 document.addEventListener('visibilitychange', () => {
-  if (!examStarted) return;
+  if (!examStarted || submitted) return;
   if (document.hidden) {
-    document.getElementById('main-content').classList.add('blur-shield');
-    document.getElementById('overlay').classList.add('active');
-  } else {
-    document.getElementById('main-content').classList.remove('blur-shield');
-    document.getElementById('overlay').classList.remove('active');
+    logSecurityEvent("BLUR_EVENT");
   }
 });
 
-window.addEventListener('keyup', async (e) => {
+// Fixed: Keyup fires after screenshot is completed. Moved to keydown + fetch first prior to rendering security error.
+window.addEventListener('keydown', async (e) => {
   if (e.key === 'PrintScreen') {
-    navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED').catch(() => {});
-    try {
-      await fetch(WORKER_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "SCREENSHOT_EVENT", discordId: window.dUser?.id, discordUsername: window.dUser?.username })
-      });
-    } catch(err) {}
+    e.preventDefault();
+    logSecurityEvent("SCREENSHOT_EVENT");
+    try { navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED'); } catch(e) {}
     document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;">Unauthorized Screen Capture Attempt Recorded.</p></div>`;
   }
 });
@@ -198,6 +230,7 @@ async function showInstructions() {
     return;
   }
   window.rUser = rankData.robloxId;
+  window.rUsername = rankData.robloxUsername; // Mapped properly to prevent "Unknown"
   document.getElementById('notice').style.display = 'none';
   document.getElementById('question').innerHTML = `
     <div style="width:100%;">
@@ -251,7 +284,7 @@ async function startExam() {
   try {
     [questRes, logRes] = await Promise.all([
       fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) }),
-      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) })
+      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username, username: window.rUsername }) })
     ]);
   } catch(err) {
     document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:13px;">Connection error. Please refresh and try again.</div>`;
@@ -351,13 +384,13 @@ async function finalSubmit() {
   reviewMode = true;
   clearInterval(timerInterval);
   document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:13px;"><span class="loading-spinner"></span>Submitting...</div>`;
-  let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
+  let content = `**Roblox**: ${window.rUsername}\n**Discord**: ${window.dUser.username}\n\n`;
   mainQuestions.forEach((q, i) => { content += `**Q${i + 1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
   try {
     const submitRes = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft })
+      body: JSON.stringify({ discordId: window.dUser.id, username: window.rUsername, discordUsername: window.dUser.username, robloxId: window.rUser, content, secondsLeft })
     });
     if (submitRes.ok) {
       document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#00dcff;margin-bottom:8px;">Submitted</div><div style="font-size:13px;color:#b0c8d4;">Your exam has been sent for review. You'll hear back via Discord.</div></div>`;
