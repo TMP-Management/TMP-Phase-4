@@ -32,7 +32,9 @@
   .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; }
   @keyframes timerPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
   .seg-tracker { display: flex; gap: 4px; width: 100%; flex-wrap: wrap; }
-  .seg-block { flex: 1; min-width: 20px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); border: 1px solid transparent; transition: 0.3s; }
+  .seg-block { flex: 1; min-width: 20px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); border: 1px solid transparent; transition: 0.3s; cursor: default; }
+  .seg-block.clickable { cursor: pointer; }
+  .seg-block.clickable:hover { border-color: #ff69b4; background: rgba(255,105,180,0.3); }
   .seg-block.filled { background: linear-gradient(90deg, #ff69b4, #00dcff); }
   .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.3); }
   .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; padding: 24px; color: #f0f0f0; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
@@ -60,7 +62,7 @@
       </div>
     </div>
     <div class="notice-card" id="notice">
-      <span class="glow-text">Identity Verification</span><br>Link Discord to access Phase 4 protocols.
+      <span class="glow-text">Identity Verification</span><br>Link Discord to access Phase 4.
     </div>
     <div class="meta-row">
       <div class="progress" id="progress">Awaiting Clearance</div>
@@ -68,13 +70,13 @@
     </div>
     <div class="seg-tracker" id="segTracker"></div>
     <div id="question" class="question-card">
-      <button class="action-btn" onclick="loginDiscord()">Initialize Discord Link</button>
+      <button class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
     </div>
     <div id="input-area">
-      <textarea id="answer" placeholder="Provide detailed response..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveAndNext();}"></textarea>
+      <textarea id="answer" placeholder="Type your answer here..." onpaste="return false;" oncopy="return false;" oncut="return false;" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();saveAndNext();}"></textarea>
       <div class="btn-row" style="display:flex;gap:10px;width:100%;">
-        <button class="action-btn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Review All</button>
-        <button class="action-btn" onclick="saveAndNext()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Transmit Response</button>
+        <button class="action-btn" onclick="showReview()" style="border-color:#00dcff; color:#00dcff; flex:1;">Review</button>
+        <button class="action-btn" onclick="saveAndNext()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit</button>
       </div>
     </div>
     <div id="credit" class="credit-text">SYSTEM DESIGN BY FAEVYNL</div>
@@ -96,6 +98,7 @@ window.addEventListener('keyup', async (e) => {
         try {
             await fetch(WORKER_URL, {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ type: "SCREENSHOT_EVENT", discordId: window.dUser?.id, discordUsername: window.dUser?.username })
             });
         } catch(e) {}
@@ -136,17 +139,26 @@ function updateSegTracker() {
         const b = document.getElementById(`seg-${i}`);
         if (!b) return;
         b.className = 'seg-block';
+        if (examStarted) b.classList.add('clickable');
         if (answers[i] && answers[i].trim()) b.classList.add('filled');
         if (i === current) b.classList.add('current');
+        b.onclick = examStarted ? () => jumpToQuestion(i) : null;
     });
+}
+
+function jumpToQuestion(i) {
+    answers[current] = document.getElementById('answer').value.trim();
+    current = i;
+    saveProgress();
+    loadQuestion();
 }
 
 function loginDiscord() { window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`; }
 
 async function showInstructions() {
     const [cooldownRes, rankRes] = await Promise.all([
-        fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
-        fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
+        fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
+        fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
     ]);
     const cooldown = await cooldownRes.json();
     const rankData = await rankRes.json();
@@ -157,16 +169,16 @@ async function showInstructions() {
     document.getElementById('question').innerHTML = `
         <div style="text-align:left;width:100%;">
             <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4 CLEARANCE GRANTED</div>
-            <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">Timer: 50 Minutes | Open Book Protocol<br>WARNING: Server-side tracking active.</div>
-            ${saved ? `<button class="action-btn" onclick="resumeExam()" style="margin-bottom:8px; border-color:#ff69b4; color:#ff69b4;">Resume Protocol</button>` : ''}
-            <button class="action-btn" onclick="startExam()">Begin Assessment</button>
+            <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div>
+            ${saved ? `<button class="action-btn" onclick="resumeExam()" style="margin-bottom:8px; border-color:#ff69b4; color:#ff69b4;">Resume Exam</button>` : ''}
+            <button class="action-btn" onclick="startExam()">Begin Exam</button>
         </div>`;
 }
 
 async function startExam() {
-    const res = await fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
+    const res = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
     const data = await res.json();
-    const logRes = await fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username })});
+    const logRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) });
     const logData = await logRes.json();
     mainQuestions = data.questions;
     answers = new Array(mainQuestions.length).fill("");
@@ -195,7 +207,7 @@ function startGlobalTimer() {
 }
 
 function loadQuestion() {
-    document.getElementById('progress').innerText = `PROTOCOL ${current + 1} / ${mainQuestions.length}`;
+    document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
     updateSegTracker();
     document.getElementById('answer').value = answers[current] || '';
     document.getElementById('question').innerText = mainQuestions[current];
@@ -211,17 +223,17 @@ function showReview() {
     document.getElementById('input-area').style.display = 'none';
     let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
     mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
-    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px; border-color:#ff69b4; color:#ff69b4;">Finalize Transmission</button>`;
+    html += `</div><button class="action-btn" onclick="finalSubmit()" style="margin-top:15px; border-color:#ff69b4; color:#ff69b4;">Submit Exam</button>`;
     document.getElementById('question').innerHTML = html;
 }
 
 async function finalSubmit() {
-    document.getElementById('question').innerHTML = "TRANSMITTING...";
+    document.getElementById('question').innerHTML = "Submitting...";
     let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
     mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
-    await fetch(WORKER_URL, { method: "POST", body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
+    await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
     localStorage.removeItem(saveKey());
-    document.getElementById('question').innerHTML = "TRANSMISSION COMPLETE";
+    document.getElementById('question').innerHTML = "Submitted successfully.";
 }
 
 window.onload = () => {
