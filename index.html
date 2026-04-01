@@ -117,7 +117,6 @@ function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
 }
 
-// Fixed: Discovered some firewalls/payload methods fail to send on unload
 async function logSecurityEvent(type) {
   if (!examStarted || submitted) return;
   try {
@@ -135,7 +134,6 @@ async function logSecurityEvent(type) {
   } catch(err) {}
 }
 
-// Switched from sendBeacon to standard fetch keepalive (the replacement standard)
 function sendAbandonBeacon() {
   if (!examStarted || submitted) return;
   const answered = getAnsweredCount();
@@ -160,7 +158,6 @@ function sendAbandonBeacon() {
 
 window.addEventListener('beforeunload', sendAbandonBeacon);
 
-// Fixed: Visibility alone missed when users clicked off to other apps (like Discord)
 window.addEventListener('blur', () => {
   if (!examStarted || submitted) return;
   document.getElementById('main-content').classList.add('blur-shield');
@@ -181,7 +178,6 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Fixed: Keyup fires after screenshot is completed. Moved to keydown + fetch first prior to rendering security error.
 window.addEventListener('keydown', async (e) => {
   if (e.key === 'PrintScreen') {
     e.preventDefault();
@@ -230,7 +226,7 @@ async function showInstructions() {
     return;
   }
   window.rUser = rankData.robloxId;
-  window.rUsername = rankData.robloxUsername; // Mapped properly to prevent "Unknown"
+  window.rUsername = rankData.robloxUsername;
   document.getElementById('notice').style.display = 'none';
   document.getElementById('question').innerHTML = `
     <div style="width:100%;">
@@ -390,7 +386,15 @@ async function finalSubmit() {
     const submitRes = await fetch(WORKER_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ discordId: window.dUser.id, username: window.rUsername, discordUsername: window.dUser.username, robloxId: window.rUser, content, secondsLeft })
+      body: JSON.stringify({ 
+        type: "SUBMIT_EXAM",
+        discordId: window.dUser.id, 
+        username: window.rUsername, 
+        discordUsername: window.dUser.username, 
+        robloxId: window.rUser, 
+        content, 
+        secondsLeft 
+      })
     });
     if (submitRes.ok) {
       document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#00dcff;margin-bottom:8px;">Submitted</div><div style="font-size:13px;color:#b0c8d4;">Your exam has been sent for review. You'll hear back via Discord.</div></div>`;
