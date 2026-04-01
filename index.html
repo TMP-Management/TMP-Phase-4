@@ -93,185 +93,158 @@ let examStarted = false, mainQuestions = [];
 window.dUser = null; window.rUser = null;
 
 window.addEventListener('keyup', async (e) => {
-    if (e.key === 'PrintScreen') {
-        navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED');
-        try {
-            await fetch(WORKER_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ type: "SCREENSHOT_EVENT", discordId: window.dUser?.id, discordUsername: window.dUser?.username })
-            });
-        } catch(e) {}
-        document.body.innerHTML = `
-            <div style="background:#0a0a0a; color:#ff3a3a; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:'Rajdhani'; text-align:center;">
-                <h1 style="font-size:40px;">CRITICAL SECURITY VIOLATION</h1>
-                <p style="color:#00dcff;">Unauthorized Screen Capture Attempt Recorded.</p>
-                <p style="margin-top:20px; font-size:12px; color:rgba(255,255,255,0.3);">INCIDENT REF: ${Date.now()}</p>
-            </div>`;
-    }
+  if (e.key === 'PrintScreen') {
+    navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED');
+    try {
+      await fetch(WORKER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "SCREENSHOT_EVENT", discordId: window.dUser?.id, discordUsername: window.dUser?.username })
+      });
+    } catch(e) {}
+    document.body.innerHTML = `
+      <div style="background:#0a0a0a; color:#ff3a3a; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:'Rajdhani'; text-align:center;">
+        <h1 style="font-size:40px;">CRITICAL SECURITY VIOLATION</h1>
+        <p style="color:#00dcff;">Unauthorized Screen Capture Attempt Recorded.</p>
+        <p style="margin-top:20px; font-size:12px; color:rgba(255,255,255,0.3);">INCIDENT REF: ${Date.now()}</p>
+      </div>`;
+  }
 });
 
 window.addEventListener('blur', () => { if (examStarted) { document.getElementById('main-content').classList.add('blur-shield'); document.getElementById('overlay').classList.add('active'); } });
 window.addEventListener('focus', () => { document.getElementById('main-content').classList.remove('blur-shield'); document.getElementById('overlay').classList.remove('active'); });
 
-function saveKey() { return "tmp_v4_" + (window.dUser?.id || 'anon'); }
-function saveProgress() {
-    const curVal = document.getElementById('answer')?.value || '';
-    if (examStarted && curVal.trim()) answers[current] = curVal;
-    localStorage.setItem(saveKey(), JSON.stringify({ current, answers, rUser: window.rUser, questions: mainQuestions }));
-}
-
-function loadProgress() { try { return JSON.parse(localStorage.getItem(saveKey())); } catch(e) { return null; } }
-
 function buildSegTracker(total) {
-    const tracker = document.getElementById('segTracker');
-    tracker.innerHTML = '';
-    for (let i = 0; i < total; i++) {
-        const b = document.createElement('div');
-        b.className = 'seg-block';
-        b.id = `seg-${i}`;
-        tracker.appendChild(b);
-    }
+  const tracker = document.getElementById('segTracker');
+  tracker.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const b = document.createElement('div');
+    b.className = 'seg-block';
+    b.id = `seg-${i}`;
+    tracker.appendChild(b);
+  }
 }
 
 function updateSegTracker() {
-    mainQuestions.forEach((_, i) => {
-        const b = document.getElementById(`seg-${i}`);
-        if (!b) return;
-        b.className = 'seg-block';
-        if (examStarted) b.classList.add('clickable');
-        if (answers[i] && answers[i].trim()) b.classList.add('filled');
-        if (i === current) b.classList.add('current');
-        b.onclick = examStarted ? () => jumpToQuestion(i) : null;
-    });
+  mainQuestions.forEach((_, i) => {
+    const b = document.getElementById(`seg-${i}`);
+    if (!b) return;
+    b.className = 'seg-block';
+    if (examStarted) b.classList.add('clickable');
+    if (answers[i] && answers[i].trim()) b.classList.add('filled');
+    if (i === current) b.classList.add('current');
+    b.onclick = examStarted ? () => jumpToQuestion(i) : null;
+  });
 }
 
 function jumpToQuestion(i) {
-    if (document.getElementById('input-area').style.display === 'flex') {
-        answers[current] = document.getElementById('answer').value.trim();
-    }
-    current = i;
-    saveProgress();
-    
-    // Ensure input area is visible if returning from review
-    if (!examStarted && secondsLeft > 0) {
-        examStarted = true;
-        document.getElementById('input-area').style.display = 'flex';
-        // Restart timer display if it was cleared
-        if(!timerInterval) startGlobalTimer(); 
-    }
-    
-    loadQuestion();
+  if (document.getElementById('input-area').style.display === 'flex') {
+    answers[current] = document.getElementById('answer').value.trim();
+  }
+  current = i;
+  
+  // Ensure input area is visible if returning from review
+  if (!examStarted && secondsLeft > 0) {
+    examStarted = true;
+    document.getElementById('input-area').style.display = 'flex';
+    // Restart timer display if it was cleared
+    if(!timerInterval) startGlobalTimer(); 
+  }
+  
+  loadQuestion();
 }
 
 function loginDiscord() { window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`; }
 
 async function showInstructions() {
-    const [cooldownRes, rankRes] = await Promise.all([
-        fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
-        fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
-    ]);
-    const cooldown = await cooldownRes.json();
-    const rankData = await rankRes.json();
-    if (cooldown.onCooldown) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>COOLDOWN ACTIVE</div>`; return; }
-    if (!rankData.eligible) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>UNAUTHORIZED RANK</div>`; return; }
-    window.rUser = rankData.robloxId;
-    const saved = loadProgress();
-    document.getElementById('question').innerHTML = `
-        <div style="text-align:left;width:100%;">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4</div>
-            <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div>
-            ${saved ? `<button class="action-btn" onclick="resumeExam()" style="margin-bottom:8px; border-color:#ff69b4; color:#ff69b4;">Resume Exam</button>` : ''}
-            <button class="action-btn" onclick="startExam()">Begin Exam</button>
-        </div>`;
+  const [cooldownRes, rankRes] = await Promise.all([
+    fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
+    fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
+  ]);
+  const cooldown = await cooldownRes.json();
+  const rankData = await rankRes.json();
+  if (cooldown.onCooldown) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>COOLDOWN ACTIVE</div>`; return; }
+  if (!rankData.eligible) { document.getElementById('question').innerHTML = `<div style='color:#ff3a3a;font-weight:700;'>UNAUTHORIZED RANK</div>`; return; }
+  window.rUser = rankData.robloxId;
+  document.getElementById('question').innerHTML = `
+    <div style="text-align:left;width:100%;">
+      <div style="font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;color:#ff69b4;text-align:center;margin-bottom:12px;">PHASE 4</div>
+      <div style="font-size:13px;color:#b0c8d4;line-height:1.75;margin-bottom:16px;text-align:center;">50 minute timer · Open book<br>Timer starts when you begin and cannot be reset.</div>
+      <button class="action-btn" onclick="startExam()">Begin Exam</button>
+    </div>`;
 }
 
 async function startExam() {
-    const res = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
-    const data = await res.json();
-    const logRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) });
-    const logData = await logRes.json();
-    mainQuestions = data.questions;
-    if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
-    const elapsed = Math.floor((Date.now() - logData.startTime) / 1000);
-    secondsLeft = Math.max(0, 3000 - elapsed);
-    examStarted = true;
-    buildSegTracker(mainQuestions.length);
-    document.getElementById('notice').style.display = 'none';
-    document.getElementById('input-area').style.display = 'flex';
-    if(!timerInterval) startGlobalTimer();
-    loadQuestion();
-}
-
-function resumeExam() {
-  const saved = loadProgress();
-  mainQuestions = saved.questions;
-  answers = saved.answers;
-  current = saved.current;
+  const res = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "FETCH_QUESTIONS" }) });
+  const data = await res.json();
+  const logRes = await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "START_EXAM_LOG", discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username }) });
+  const logData = await logRes.json();
+  mainQuestions = data.questions;
+  if (answers.length === 0) answers = new Array(mainQuestions.length).fill("");
+  const elapsed = Math.floor((Date.now() - logData.startTime) / 1000);
+  secondsLeft = Math.max(0, 3000 - elapsed);
   examStarted = true;
   buildSegTracker(mainQuestions.length);
   document.getElementById('notice').style.display = 'none';
   document.getElementById('input-area').style.display = 'flex';
-  if (!timerInterval) startGlobalTimer();
+  if(!timerInterval) startGlobalTimer();
   loadQuestion();
 }
 
 function startGlobalTimer() {
-    const timerEl = document.getElementById('timer');
-    timerEl.style.display = 'block';
-    timerInterval = setInterval(() => {
-        secondsLeft--;
-        const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
-        timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
-        if (secondsLeft <= 300) timerEl.classList.add('danger');
-        if (secondsLeft <= 0) { clearInterval(timerInterval); showReview(); }
-    }, 1000);
+  const timerEl = document.getElementById('timer');
+  timerEl.style.display = 'block';
+  timerInterval = setInterval(() => {
+    secondsLeft--;
+    const m = Math.floor(secondsLeft/60), s = secondsLeft%60;
+    timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2,'0')}`;
+    if (secondsLeft <= 300) timerEl.classList.add('danger');
+    if (secondsLeft <= 0) { clearInterval(timerInterval); showReview(); }
+  }, 1000);
 }
 
 function loadQuestion() {
-    document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
-    updateSegTracker();
-    document.getElementById('answer').value = answers[current] || '';
-    document.getElementById('question').innerText = mainQuestions[current];
+  document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
+  updateSegTracker();
+  document.getElementById('answer').value = answers[current] || '';
+  document.getElementById('question').innerText = mainQuestions[current];
 }
 
 function saveAndNext() {
-    answers[current] = document.getElementById('answer').value.trim();
-    if (current < mainQuestions.length - 1) { current++; saveProgress(); loadQuestion(); } else { showReview(); }
+  answers[current] = document.getElementById('answer').value.trim();
+  if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
 }
 
 function showReview() {
-    examStarted = false; 
-    // We don't clear the interval so the timer keeps running in the background until final submission
-    document.getElementById('input-area').style.display = 'none';
-    let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
-    mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
-    html += `</div>
-    <div style="display:flex;gap:10px;width:100%;margin-top:15px;">
-        <button class="action-btn" onclick="startExam()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button>
-        <button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button>
-    </div>`;
-    document.getElementById('question').innerHTML = html;
+  examStarted = false; 
+  document.getElementById('input-area').style.display = 'none';
+  let html = `<div style="text-align:left;max-height:300px;overflow-y:auto;width:100%;font-size:12px;color:#00dcff;">`;
+  mainQuestions.forEach((q, i) => { html += `<div style="border-bottom:1px solid #333;padding:8px 0;">[Q${i+1}] ${answers[i] || 'MISSING'}</div>`; });
+  html += `</div>
+  <div style="display:flex;gap:10px;width:100%;margin-top:15px;">
+    <button class="action-btn" onclick="startExam()" style="border-color:#00dcff; color:#00dcff; flex:1;">Back</button>
+    <button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4; color:#ff69b4; flex:2;">Submit Exam</button>
+  </div>`;
+  document.getElementById('question').innerHTML = html;
 }
 
 async function finalSubmit() {
-    examStarted = false;
-    clearInterval(timerInterval);
-    document.getElementById('question').innerHTML = "Submitting...";
-    let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
-    mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
-    await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
-    localStorage.removeItem(saveKey());
-    document.getElementById('question').innerHTML = "Submitted successfully.";
+  examStarted = false;
+  clearInterval(timerInterval);
+  document.getElementById('question').innerHTML = "Submitting...";
+  let content = `**Roblox**: ${window.rUser}\n**Discord**: ${window.dUser.username}\n\n`;
+  mainQuestions.forEach((q, i) => { content += `**Q${i+1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
+  await fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discordId: window.dUser.id, username: window.rUser, discordUsername: window.dUser.username, content, secondsLeft }) });
+  document.getElementById('question').innerHTML = "Submitted successfully.";
 }
 
 window.onload = () => {
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    const token = hash.get('access_token');
-    if (token) {
-        fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => res.json()).then(user => { window.dUser = user; showInstructions(); });
-    }
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const token = hash.get('access_token');
+  if (token) {
+    fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
+    .then(res => res.json()).then(user => { window.dUser = user; showInstructions(); });
+  }
 };
 </script>
 </body>
