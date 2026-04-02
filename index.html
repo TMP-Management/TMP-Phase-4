@@ -238,10 +238,10 @@ async function showInstructions() {
         <div class="info-tile"><div class="info-tile-label">Attempts</div><div class="info-tile-value" style="color:#ff69b4;">1 per 24h</div></div>
       </div>
       <div class="rule-list">
-        <div class="rule-item"><div class="rule-dot"></div>The timer starts when you click Begin and cannot be paused or reset.</div>
+        <div class="rule-item"><div class="rule-dot"></div>The timer starts when you click BEGIN EXAM and cannot be paused or reset.</div>
         <div class="rule-item"><div class="rule-dot"></div>You can jump between questions freely using the bar at the top.</div>
         <div class="rule-item"><div class="rule-dot"></div>Copying and pasting text into answers is not allowed.</div>
-        <div class="rule-item"><div class="rule-dot"></div>Switching tabs or closing the page will be logged.</div>
+        <div class="rule-item"><div class="rule-dot"></div>Do not close the page.</div>
       </div>
       <button class="action-btn" onclick="startExam()" style="border-color:#ff69b4;color:#ff69b4;">Begin Exam</button>
     </div>`;
@@ -380,8 +380,6 @@ async function finalSubmit() {
   reviewMode = true;
   clearInterval(timerInterval);
   document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:13px;"><span class="loading-spinner"></span>Submitting...</div>`;
-  let content = `**Roblox**: ${window.rUsername}\n**Discord**: ${window.dUser.username}\n\n`;
-  mainQuestions.forEach((q, i) => { content += `**Q${i + 1}:** ${q}\n> ${answers[i] || 'No Response'}\n\n`; });
   try {
     const submitRes = await fetch(WORKER_URL, {
       method: "POST",
@@ -391,8 +389,8 @@ async function finalSubmit() {
         discordId: window.dUser.id, 
         username: window.rUsername, 
         discordUsername: window.dUser.username, 
-        robloxId: window.rUser, 
-        content, 
+        robloxId: window.rUser,
+        answers: answers,
         secondsLeft 
       })
     });
