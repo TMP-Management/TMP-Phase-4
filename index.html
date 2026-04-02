@@ -18,48 +18,59 @@
   .security-notice h1 { color: #ff3a3a; font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,58,58,0.5); }
   .security-notice p { color: #00dcff; font-size: 14px; letter-spacing: 1px; }
   #app { position: relative; width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 12px; }
-  .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg,#0d0d0d,#111); border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; position: relative; overflow: hidden; }
+  .header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg,#0d0d0d,#111); border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; position: relative; overflow: hidden; flex-shrink: 0; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,#ff69b4,#00dcff,#ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   .header-logo { width: 48px; height: 48px; border-radius: 10px; border: 1px solid rgba(255,105,180,0.4); }
   .header-title { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 18px; color: #fff; letter-spacing: 1px; }
   .header-subtitle { font-size: 12px; color: #00dcff; letter-spacing: 2px; text-transform: uppercase; }
-  .notice-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,220,255,0.25); border-radius: 12px; padding: 12px 16px; color: #99b4c0; font-size: 12px; text-align: center; }
+  .notice-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,220,255,0.25); border-radius: 12px; padding: 12px 16px; color: #99b4c0; font-size: 12px; text-align: center; flex-shrink: 0; }
   .glow-text { color: #00dcff; font-weight: 700; text-transform: uppercase; }
-  .meta-row { display: flex; justify-content: space-between; align-items: center; }
+  .meta-row { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
   .progress { font-family: 'Rajdhani', sans-serif; font-size: 13px; color: #ff69b4; }
   .timer { font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #00dcff; display: none; }
   .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; }
   @keyframes timerPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
-  .seg-tracker { display: flex; gap: 4px; width: 100%; flex-wrap: wrap; }
+  .seg-tracker { display: flex; gap: 4px; width: 100%; flex-wrap: wrap; flex-shrink: 0; }
   .seg-block { flex: 1; min-width: 20px; height: 8px; border-radius: 3px; background: rgba(255,255,255,0.08); border: 1px solid transparent; transition: 0.3s; cursor: default; }
   .seg-block.clickable { cursor: pointer; }
   .seg-block.clickable:hover { border-color: #ff69b4; background: rgba(255,105,180,0.3); }
   .seg-block.filled { background: linear-gradient(90deg,#ff69b4,#00dcff); }
+  .seg-block.locked { background: rgba(255,105,180,0.25); border-color: rgba(255,105,180,0.4); }
   .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.3); }
-  .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; padding: 24px; color: #f0f0f0; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-  #input-area { display: none; flex-direction: column; gap: 10px; }
+  .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.3); border-radius: 16px; padding: 24px; color: #f0f0f0; min-height: 160px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; overflow-y: auto; max-height: calc(100vh - 300px); }
+  #input-area { display: none; flex-direction: column; gap: 10px; flex-shrink: 0; }
   #answer { width: 100%; min-height: 120px; padding: 14px; border-radius: 12px; border: 1px solid rgba(255,105,180,0.3); background: #0d0d0d; color: #fff; outline: none; resize: none; -webkit-user-select: text; user-select: text; }
+  #answer:disabled { color: #555; border-color: rgba(255,255,255,0.08); cursor: not-allowed; background: #0a0a0a; }
   .action-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0,220,255,0.5); background: rgba(0,220,255,0.1); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; transition: 0.2s; }
-  .action-btn:hover { background: linear-gradient(90deg,#ff69b4,#00dcff); color: #000; }
-  .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 15px; letter-spacing: 2px; }
+  .action-btn:hover:not(:disabled) { background: linear-gradient(90deg,#ff69b4,#00dcff); color: #000; }
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .locked-notice { font-size: 11px; color: rgba(255,105,180,0.6); text-align: center; letter-spacing: 1px; font-family: 'Rajdhani', sans-serif; text-transform: uppercase; display: none; padding: 2px 0; }
+  .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.2); text-align: center; margin-top: 15px; letter-spacing: 2px; flex-shrink: 0; }
   .loading-spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid rgba(0,220,255,0.2); border-top-color: #00dcff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; width: 100%; }
+  .instructions-scroll { width: 100%; overflow-y: auto; max-height: calc(100vh - 340px); padding-right: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,105,180,0.3) transparent; }
+  .instructions-scroll::-webkit-scrollbar { width: 4px; }
+  .instructions-scroll::-webkit-scrollbar-thumb { background: rgba(255,105,180,0.3); border-radius: 2px; }
+  .instructions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; width: 100%; }
   .info-tile { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 14px; text-align: left; }
   .info-tile-label { font-size: 11px; color: #667; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
   .info-tile-value { font-family: 'Rajdhani', sans-serif; font-size: 17px; font-weight: 700; color: #00dcff; }
-  .rule-list { width: 100%; text-align: left; margin-bottom: 18px; }
-  .rule-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; color: #b0c8d4; line-height: 1.5; }
+  .instr-section { width: 100%; margin-bottom: 14px; }
+  .instr-section-title { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; color: #ff69b4; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(255,105,180,0.2); }
+  .rule-list { width: 100%; }
+  .rule-item { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: #b0c8d4; line-height: 1.6; text-align: left; }
   .rule-item:last-child { border-bottom: none; }
-  .rule-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff69b4; margin-top: 6px; flex-shrink: 0; }
+  .rule-dot { width: 5px; height: 5px; border-radius: 50%; background: #ff69b4; margin-top: 7px; flex-shrink: 0; }
+  .rule-item b { color: #fff; font-weight: 600; }
+  .rule-item span.hl { color: #00dcff; }
   .review-header { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 6px; letter-spacing: 1px; }
   .review-subhead { font-size: 12px; color: #667; text-align: center; margin-bottom: 16px; }
   .review-scroll { max-height: 260px; overflow-y: auto; width: 100%; margin-bottom: 16px; scrollbar-width: thin; scrollbar-color: rgba(255,105,180,0.3) transparent; }
   .review-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .review-item:last-child { border-bottom: none; }
   .review-qnum { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 700; color: #ff69b4; min-width: 28px; padding-top: 1px; }
-  .review-answer { font-size: 12px; color: #b0c8d4; line-height: 1.5; word-break: break-word; }
+  .review-answer { font-size: 12px; color: #b0c8d4; line-height: 1.5; word-break: break-word; text-align: left; }
   .review-answer.missing { color: #ff3a3a; font-style: italic; }
   .review-status { display: flex; justify-content: space-between; margin-bottom: 14px; font-size: 12px; }
   .review-stat { display: flex; align-items: center; gap: 6px; }
@@ -96,9 +107,10 @@
     </div>
     <div id="input-area">
       <textarea id="answer" placeholder="Type your answer here..."></textarea>
+      <div class="locked-notice" id="locked-notice">⚑ Answer submitted — this question is locked</div>
       <div style="display:flex;gap:10px;width:100%;">
         <button class="action-btn" onclick="showReview()" style="border-color:#00dcff;color:#00dcff;flex:1;">Review</button>
-        <button class="action-btn" onclick="saveAndNext()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Next</button>
+        <button class="action-btn" id="submit-btn" onclick="saveAndNext()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Submit & Next</button>
       </div>
     </div>
     <div class="credit-text">CREATED BY FAEVYNL</div>
@@ -108,7 +120,7 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.href.split('#')[0];
-let current = 0, answers = [], timerInterval = null, secondsLeft = 3000;
+let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
@@ -147,7 +159,6 @@ function sendAbandonBeacon() {
     answeredCount: answered,
     totalCount: mainQuestions.length
   });
-  
   fetch(WORKER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -228,22 +239,39 @@ async function showInstructions() {
   window.rUser = rankData.robloxId;
   window.rUsername = rankData.robloxUsername;
   document.getElementById('notice').style.display = 'none';
+  document.getElementById('question').style.cssText += 'justify-content:flex-start;text-align:left;';
   document.getElementById('question').innerHTML = `
     <div style="width:100%;">
-      <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:18px;letter-spacing:1px;">Phase 4 — Written Exam</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;color:#fff;text-align:center;margin-bottom:16px;letter-spacing:1px;">Phase 4 — Written Exam</div>
       <div class="instructions-grid">
-        <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 minutes</div></div>
-        <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19 questions</div></div>
+        <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 min</div></div>
+        <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
         <div class="info-tile"><div class="info-tile-label">Book Policy</div><div class="info-tile-value" style="color:#ff69b4;">Open book</div></div>
-        <div class="info-tile"><div class="info-tile-label">Attempts</div><div class="info-tile-value" style="color:#ff69b4;">1 per 24h</div></div>
+        <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value" style="color:#ff69b4;">1 day</div></div>
       </div>
-      <div class="rule-list">
-        <div class="rule-item"><div class="rule-dot"></div>The timer starts when you click BEGIN EXAM and cannot be paused or reset.</div>
-        <div class="rule-item"><div class="rule-dot"></div>You can jump between questions freely using the bar at the top.</div>
-        <div class="rule-item"><div class="rule-dot"></div>Copying and pasting text into answers is not allowed.</div>
-        <div class="rule-item"><div class="rule-dot"></div>Do not close the page.</div>
+      <div class="instructions-scroll">
+        <div class="instr-section">
+          <div class="instr-section-title">Exam Details</div>
+          <div class="rule-list">
+            <div class="rule-item"><div class="rule-dot"></div>You will have <span class="hl">50 minutes</span> to complete all questions.</div>
+            <div class="rule-item"><div class="rule-dot"></div>You can use the blocks below the question counter to navigate between questions. For example, you can start with Q5 and then switch to Q12.</div>
+            <div class="rule-item"><div class="rule-dot"></div>You can move between questions freely, but <b>once you submit an answer, it cannot be changed.</b></div>
+            <div class="rule-item"><div class="rule-dot"></div>There is a <span class="hl">1 day</span> cooldown between submissions.</div>
+            <div class="rule-item"><div class="rule-dot"></div>This is an <span class="hl">open book</span> exam. You are allowed to use any documents at your disposal.</div>
+            <div class="rule-item"><div class="rule-dot"></div><b>Your progress is not saved!</b></div>
+            <div class="rule-item"><div class="rule-dot"></div>You must link your Discord account before you can take the exam. A Bloxlink check will also be performed, so make sure you are verified with @Bloxlink beforehand. Note that verification may fail if Bloxlink is down or has reached its daily API limit (500 requests).</div>
+          </div>
+        </div>
+        <div class="instr-section">
+          <div class="instr-section-title">Exam Rules</div>
+          <div class="rule-list">
+            <div class="rule-item"><div class="rule-dot"></div>The usage of AI is prohibited.</div>
+            <div class="rule-item"><div class="rule-dot"></div>Plagiarism is not allowed. Your answers must be written in your own words. Copying and pasting from documents or other examinees will result in an immediate fail.</div>
+            <div class="rule-item"><div class="rule-dot"></div>You are not permitted to share, screenshot, or discuss specific exam questions with anyone. If you are experiencing technical difficulties, consult a member of TMP High Command. This examination has been thoroughly tested, but there may be bugs.</div>
+          </div>
+        </div>
       </div>
-      <button class="action-btn" onclick="startExam()" style="border-color:#ff69b4;color:#ff69b4;">Begin Exam</button>
+      <button class="action-btn" onclick="startExam()" style="border-color:#ff69b4;color:#ff69b4;margin-top:14px;">Begin Exam</button>
     </div>`;
 }
 
@@ -290,12 +318,14 @@ async function startExam() {
   const logData = await logRes.json();
   mainQuestions = data.questions;
   answers = new Array(mainQuestions.length).fill("");
+  lockedQuestions = new Array(mainQuestions.length).fill(false);
   current = 0;
   const serverSeconds = Math.floor(Number(logData.secondsLeft));
   if (serverSeconds <= 0) {
     document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-weight:700;font-family:'Rajdhani',sans-serif;font-size:16px;">TIME EXPIRED<br><span style="font-size:12px;color:#99b4c0;font-weight:400;">Your exam window has closed.</span></div>`;
     return;
   }
+  document.getElementById('question').style.cssText = '';
   examStarted = true;
   buildSegTracker(mainQuestions.length);
   document.getElementById('input-area').style.display = 'flex';
@@ -323,14 +353,14 @@ function updateSegTracker() {
       b.classList.add('clickable');
       b.onclick = () => jumpToQuestion(i);
     }
-    if (answers[i] && answers[i].trim()) b.classList.add('filled');
+    if (lockedQuestions[i]) b.classList.add('locked');
+    else if (answers[i] && answers[i].trim()) b.classList.add('filled');
     if (i === current) b.classList.add('current');
   });
 }
 
 function jumpToQuestion(i) {
   if (reviewMode) return;
-  answers[current] = document.getElementById('answer').value.trim();
   current = i;
   loadQuestion();
 }
@@ -338,12 +368,22 @@ function jumpToQuestion(i) {
 function loadQuestion() {
   document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
   updateSegTracker();
-  document.getElementById('answer').value = answers[current] || '';
+  const answerEl = document.getElementById('answer');
+  const submitBtn = document.getElementById('submit-btn');
+  const lockedNotice = document.getElementById('locked-notice');
+  const isLocked = lockedQuestions[current];
+  answerEl.value = answers[current] || '';
+  answerEl.disabled = isLocked;
+  submitBtn.disabled = isLocked;
+  lockedNotice.style.display = isLocked ? 'block' : 'none';
   document.getElementById('question').innerText = mainQuestions[current];
 }
 
 function saveAndNext() {
-  answers[current] = document.getElementById('answer').value.trim();
+  const val = document.getElementById('answer').value.trim();
+  if (!val) return;
+  answers[current] = val;
+  lockedQuestions[current] = true;
   if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
 }
 
