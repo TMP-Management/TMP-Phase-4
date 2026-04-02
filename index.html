@@ -19,7 +19,8 @@
   .security-notice h1 { color: #ff3a3a; font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,58,58,0.5); }
   .security-notice p { color: #00dcff; font-size: 14px; letter-spacing: 1px; }
 
-  #app { position: relative; width: 100%; max-width: 580px; height: calc(100vh - 48px); display: flex; flex-direction: column; gap: 10px; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+  #app { position: relative; width: 100%; max-width: 480px; height: auto; max-height: calc(100vh - 48px); display: flex; flex-direction: column; gap: 10px; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+  #app.expanded { max-width: 620px; }
 
   .header { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: linear-gradient(135deg,#0d0d0d,#111); border: 1px solid rgba(255,105,180,0.3); border-radius: 14px; position: relative; overflow: hidden; flex-shrink: 0; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,#ff69b4,#00dcff,#ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
@@ -31,13 +32,13 @@
   .notice-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,220,255,0.2); border-radius: 10px; padding: 10px 16px; color: #7a99a8; font-size: 11.5px; text-align: center; flex-shrink: 0; }
   .glow-text { color: #00dcff; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 
-  .meta-row { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 0 2px; }
+  .meta-row { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 0 2px; display: none; }
   .progress { font-family: 'Rajdhani', sans-serif; font-size: 13px; color: #ff69b4; letter-spacing: 0.5px; }
   .timer { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; color: #00dcff; display: none; letter-spacing: 1px; }
   .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; }
   @keyframes timerPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
 
-  .seg-tracker { display: flex; gap: 3px; width: 100%; flex-wrap: wrap; flex-shrink: 0; }
+  .seg-tracker { display: flex; gap: 3px; width: 100%; flex-wrap: wrap; flex-shrink: 0; display: none; }
   .seg-block { flex: 1; min-width: 18px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.07); border: 1px solid transparent; transition: 0.25s; cursor: default; }
   .seg-block.clickable { cursor: pointer; }
   .seg-block.clickable:hover { border-color: rgba(255,105,180,0.5); background: rgba(255,105,180,0.2); }
@@ -45,7 +46,7 @@
   .seg-block.locked { background: rgba(255,105,180,0.18); border-color: rgba(255,105,180,0.35); }
   .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.25); }
 
-  .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.25); border-radius: 14px; padding: 22px; color: #e8e8e8; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 0; overflow: hidden; }
+  .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.25); border-radius: 14px; padding: 22px; color: #e8e8e8; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 180px; overflow: hidden; }
   .question-card.scrollable { overflow-y: auto; justify-content: flex-start; text-align: left; scrollbar-width: thin; scrollbar-color: rgba(255,105,180,0.25) transparent; }
   .question-card.scrollable::-webkit-scrollbar { width: 3px; }
   .question-card.scrollable::-webkit-scrollbar-thumb { background: rgba(255,105,180,0.25); border-radius: 2px; }
@@ -60,7 +61,7 @@
   .action-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
   .locked-notice { font-size: 10.5px; color: rgba(255,105,180,0.5); text-align: center; letter-spacing: 1.5px; font-family: 'Rajdhani', sans-serif; text-transform: uppercase; display: none; }
-  .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.15); text-align: center; letter-spacing: 2px; flex-shrink: 0; }
+  .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.15); text-align: center; letter-spacing: 2px; flex-shrink: 0; padding-top: 5px; }
 
   .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,220,255,0.15); border-top-color: #00dcff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -115,7 +116,7 @@
       <span class="glow-text">Identity Verification Required</span><br>
       <span style="font-size:11px;">Link your Discord account to access Phase 4.</span>
     </div>
-    <div class="meta-row">
+    <div class="meta-row" id="metaRow">
       <div class="progress" id="progress">Awaiting Clearance</div>
       <div class="timer" id="timer">⏱ 50:00</div>
     </div>
@@ -144,6 +145,12 @@ let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secon
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
+
+function setAppWidth(mode) {
+  const app = document.getElementById('app');
+  if (mode === 'wide') app.classList.add('expanded');
+  else app.classList.remove('expanded');
+}
 
 function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
@@ -242,6 +249,7 @@ function setCardScrollable(on) {
 }
 
 async function showInstructions() {
+  setAppWidth('wide');
   setCardScrollable(false);
   document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying access...</div>`;
   let cooldown, rankData;
@@ -257,10 +265,12 @@ async function showInstructions() {
     return;
   }
   if (cooldown.onCooldown) {
+    setAppWidth('narrow');
     document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div style="font-size:12px;color:#556a74;">You have already submitted an exam in the last 24 hours.</div></div>`;
     return;
   }
   if (!rankData.eligible) {
+    setAppWidth('narrow');
     document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">You do not meet the rank requirement for this examination.</div></div>`;
     return;
   }
@@ -323,9 +333,12 @@ function startGlobalTimer(serverSeconds) {
 }
 
 async function startExam() {
+  setAppWidth('narrow');
   reviewMode = false;
   submitted = false;
   setCardScrollable(false);
+  document.getElementById('metaRow').style.display = 'flex';
+  document.getElementById('segTracker').style.display = 'flex';
   document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Loading exam...</div>`;
   let questRes, logRes;
   try {
@@ -411,6 +424,7 @@ function saveAndNext() {
 }
 
 function showReview() {
+  setAppWidth('wide');
   reviewMode = true;
   setCardScrollable(true);
   document.getElementById('input-area').style.display = 'none';
@@ -433,6 +447,7 @@ function showReview() {
 }
 
 function resumeFromReview() {
+  setAppWidth('narrow');
   reviewMode = false;
   setCardScrollable(false);
   document.getElementById('input-area').style.display = 'flex';
@@ -440,6 +455,7 @@ function resumeFromReview() {
 }
 
 async function finalSubmit() {
+  setAppWidth('narrow');
   submitted = true;
   examStarted = false;
   reviewMode = true;
@@ -458,6 +474,8 @@ async function finalSubmit() {
     if (submitRes.ok) {
       document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#00dcff;letter-spacing:2px;margin-bottom:10px;">SUBMITTED</div><div style="font-size:12px;color:#556a74;line-height:1.6;">Your exam has been received and will be reviewed shortly.</div></div>`;
       document.getElementById('input-area').style.display = 'none';
+      document.getElementById('metaRow').style.display = 'none';
+      document.getElementById('segTracker').style.display = 'none';
     } else {
       submitted = false; examStarted = true;
       document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Submission failed.</div>`;
