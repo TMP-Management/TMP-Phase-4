@@ -19,8 +19,7 @@
   .security-notice h1 { color: #ff3a3a; font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,58,58,0.5); }
   .security-notice p { color: #00dcff; font-size: 14px; letter-spacing: 1px; }
 
-  #app { position: relative; width: 100%; max-width: 480px; height: calc(100vh - 48px); display: flex; flex-direction: column; gap: 10px; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
-  #app.expanded { max-width: 580px; }
+  #app { position: relative; width: 100%; max-width: 580px; height: calc(100vh - 48px); display: flex; flex-direction: column; gap: 10px; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 
   .header { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: linear-gradient(135deg,#0d0d0d,#111); border: 1px solid rgba(255,105,180,0.3); border-radius: 14px; position: relative; overflow: hidden; flex-shrink: 0; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,#ff69b4,#00dcff,#ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
@@ -146,12 +145,6 @@ let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
-function setAppWidth(mode) {
-  const app = document.getElementById('app');
-  if (mode === 'wide') app.classList.add('expanded');
-  else app.classList.remove('expanded');
-}
-
 function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
 }
@@ -249,7 +242,6 @@ function setCardScrollable(on) {
 }
 
 async function showInstructions() {
-  setAppWidth('wide');
   setCardScrollable(false);
   document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying access...</div>`;
   let cooldown, rankData;
@@ -265,12 +257,10 @@ async function showInstructions() {
     return;
   }
   if (cooldown.onCooldown) {
-    setAppWidth('narrow');
     document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div style="font-size:12px;color:#556a74;">You have already submitted an exam in the last 24 hours.</div></div>`;
     return;
   }
   if (!rankData.eligible) {
-    setAppWidth('narrow');
     document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">You do not meet the rank requirement for this examination.</div></div>`;
     return;
   }
@@ -333,7 +323,6 @@ function startGlobalTimer(serverSeconds) {
 }
 
 async function startExam() {
-  setAppWidth('narrow');
   reviewMode = false;
   submitted = false;
   setCardScrollable(false);
@@ -422,7 +411,6 @@ function saveAndNext() {
 }
 
 function showReview() {
-  setAppWidth('wide');
   reviewMode = true;
   setCardScrollable(true);
   document.getElementById('input-area').style.display = 'none';
@@ -445,7 +433,6 @@ function showReview() {
 }
 
 function resumeFromReview() {
-  setAppWidth('narrow');
   reviewMode = false;
   setCardScrollable(false);
   document.getElementById('input-area').style.display = 'flex';
@@ -453,7 +440,6 @@ function resumeFromReview() {
 }
 
 async function finalSubmit() {
-  setAppWidth('narrow');
   submitted = true;
   examStarted = false;
   reviewMode = true;
