@@ -213,12 +213,17 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) logSecurityEvent("BLUR_EVENT");
 });
 
-window.addEventListener('keydown', async (e) => {
+window.addEventListener('keyup', async (e) => {
+  if (e.key === 'PrintScreen') {
+    logSecurityEvent("SCREENSHOT_EVENT");
+    try { await navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED'); } catch(err) {}
+    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">UNAUTHORIZED SCREEN CAPTURE RECORDED</p></div>`;
+  }
+});
+
+window.addEventListener('keydown', (e) => {
   if (e.key === 'PrintScreen') {
     e.preventDefault();
-    logSecurityEvent("SCREENSHOT_EVENT");
-    try { navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED'); } catch(e) {}
-    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">UNAUTHORIZED SCREEN CAPTURE RECORDED</p></div>`;
   }
 });
 
