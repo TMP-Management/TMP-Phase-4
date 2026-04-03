@@ -478,18 +478,20 @@ async function finalSubmit() {
       answers,
       secondsLeft
     });
-    if (submitRes.ok) {
+    const result = await submitRes.json();
+    if (submitRes.ok && result.success) {
       document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#00dcff;letter-spacing:2px;margin-bottom:10px;">SUBMITTED</div><div style="font-size:12px;color:#556a74;line-height:1.6;">Your exam has been received and will be reviewed shortly.</div></div>`;
       document.getElementById('input-area').style.display = 'none';
       document.getElementById('metaRow').style.display = 'none';
       document.getElementById('segTracker').style.display = 'none';
     } else {
       submitted = false; examStarted = true;
-      document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Submission failed.</div>`;
+      const errorMsg = result.error || "Submission failed.";
+      document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">${errorMsg}</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
     }
   } catch {
     submitted = false; examStarted = true;
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>`;
+    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error. Your answers were not sent.</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
   }
 }
 </script>
