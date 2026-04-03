@@ -18,26 +18,21 @@
   .security-notice { font-family: 'Rajdhani', sans-serif; }
   .security-notice h1 { color: #ff3a3a; font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,58,58,0.5); }
   .security-notice p { color: #00dcff; font-size: 14px; letter-spacing: 1px; }
-
   #app { position: relative; width: 100%; max-width: 480px; height: auto; max-height: calc(100vh - 48px); display: flex; flex-direction: column; gap: 10px; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
   #app.expanded { max-width: 620px; }
-
   .header { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: linear-gradient(135deg,#0d0d0d,#111); border: 1px solid rgba(255,105,180,0.3); border-radius: 14px; position: relative; overflow: hidden; flex-shrink: 0; }
   .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg,#ff69b4,#00dcff,#ff69b4); background-size: 200% 100%; animation: shimmer 3s linear infinite; }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
   .header-logo { width: 44px; height: 44px; border-radius: 9px; border: 1px solid rgba(255,105,180,0.4); }
   .header-title { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 17px; color: #fff; letter-spacing: 1px; }
   .header-subtitle { font-size: 11px; color: #00dcff; letter-spacing: 2px; text-transform: uppercase; }
-
   .notice-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(0,220,255,0.2); border-radius: 10px; padding: 10px 16px; color: #7a99a8; font-size: 11.5px; text-align: center; flex-shrink: 0; }
   .glow-text { color: #00dcff; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-
   .meta-row { display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; padding: 0 2px; display: none; }
   .progress { font-family: 'Rajdhani', sans-serif; font-size: 13px; color: #ff69b4; letter-spacing: 0.5px; }
   .timer { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; color: #00dcff; display: none; letter-spacing: 1px; }
   .timer.danger { color: #ff3a3a; animation: timerPulse 0.6s ease-in-out infinite; }
   @keyframes timerPulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
-
   .seg-tracker { display: flex; gap: 3px; width: 100%; flex-wrap: wrap; flex-shrink: 0; display: none; }
   .seg-block { flex: 1; min-width: 18px; height: 7px; border-radius: 2px; background: rgba(255,255,255,0.07); border: 1px solid transparent; transition: 0.25s; cursor: default; }
   .seg-block.clickable { cursor: pointer; }
@@ -45,27 +40,21 @@
   .seg-block.filled { background: linear-gradient(90deg,#ff69b4,#00dcff); }
   .seg-block.locked { background: rgba(255,105,180,0.18); border-color: rgba(255,105,180,0.35); }
   .seg-block.current { border-color: #00dcff; background: rgba(0,220,255,0.25); }
-
   .question-card { background: #0d0d0d; border: 1px solid rgba(255,105,180,0.25); border-radius: 14px; padding: 22px; color: #e8e8e8; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; min-height: 180px; overflow: hidden; }
   .question-card.scrollable { overflow-y: auto; justify-content: flex-start; text-align: left; scrollbar-width: thin; scrollbar-color: rgba(255,105,180,0.25) transparent; }
   .question-card.scrollable::-webkit-scrollbar { width: 3px; }
   .question-card.scrollable::-webkit-scrollbar-thumb { background: rgba(255,105,180,0.25); border-radius: 2px; }
-
   #input-area { display: none; flex-direction: column; gap: 8px; flex-shrink: 0; }
   #answer { width: 100%; min-height: 110px; padding: 13px; border-radius: 11px; border: 1px solid rgba(255,105,180,0.25); background: #0d0d0d; color: #e8e8e8; outline: none; resize: none; font-family: 'Inter', sans-serif; font-size: 13px; line-height: 1.6; -webkit-user-select: text; user-select: text; transition: border-color 0.2s; }
   #answer:focus { border-color: rgba(0,220,255,0.4); }
   #answer:disabled { color: #404040; border-color: rgba(255,255,255,0.06); cursor: not-allowed; background: #080808; }
-
   .action-btn { width: 100%; padding: 13px; border-radius: 11px; border: 1px solid rgba(0,220,255,0.4); background: rgba(0,220,255,0.07); color: #00dcff; cursor: pointer; font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; transition: 0.2s; }
   .action-btn:hover:not(:disabled) { background: linear-gradient(90deg,#ff69b4,#00dcff); border-color: transparent; color: #0a0a0a; }
   .action-btn:disabled { opacity: 0.25; cursor: not-allowed; }
-
   .locked-notice { font-size: 10.5px; color: rgba(255,105,180,0.5); text-align: center; letter-spacing: 1.5px; font-family: 'Rajdhani', sans-serif; text-transform: uppercase; display: none; }
   .credit-text { font-family: 'Rajdhani', sans-serif; font-size: 10px; color: rgba(255,255,255,0.15); text-align: center; letter-spacing: 2px; flex-shrink: 0; padding-top: 5px; }
-
   .loading-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(0,220,255,0.15); border-top-color: #00dcff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
   .instr-wrap { width: 100%; display: flex; flex-direction: column; gap: 0; }
   .instr-title { font-family: 'Rajdhani', sans-serif; font-size: 19px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 14px; letter-spacing: 1px; }
   .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
@@ -73,7 +62,6 @@
   .info-tile-label { font-size: 10px; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 3px; }
   .info-tile-value { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: #00dcff; }
   .info-tile-value.pink { color: #ff69b4; }
-
   .instr-section { margin-bottom: 14px; }
   .instr-section-title { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700; color: rgba(255,105,180,0.7); letter-spacing: 2.5px; text-transform: uppercase; margin-bottom: 8px; }
   .rule-item { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; color: #8aa4b0; line-height: 1.65; }
@@ -81,7 +69,6 @@
   .rule-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,105,180,0.5); margin-top: 8px; flex-shrink: 0; }
   .rule-hl { color: #00dcff; }
   .rule-bold { color: #c8d8e0; font-weight: 500; }
-
   .review-header { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 4px; letter-spacing: 1px; }
   .review-subhead { font-size: 11.5px; color: rgba(255,255,255,0.3); text-align: center; margin-bottom: 14px; }
   .review-status { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11.5px; }
@@ -172,6 +159,21 @@ async function logSecurityEvent(type) {
       discordUsername: window.dUser?.username,
       robloxId: window.rUser,
       username: window.rUsername
+    });
+  } catch(err) {}
+}
+
+async function sendProgressUpdate() {
+  if (!examStarted || submitted) return;
+  try {
+    await post("PROGRESS_UPDATE", {
+      discordId: window.dUser?.id,
+      discordUsername: window.dUser?.username,
+      robloxId: window.rUser,
+      username: window.rUsername,
+      answeredCount: getAnsweredCount(),
+      totalCount: mainQuestions.length,
+      secondsLeft
     });
   } catch(err) {}
 }
@@ -316,11 +318,16 @@ function startGlobalTimer(serverSeconds) {
   const tick = () => {
     const elapsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
     secondsLeft = serverSeconds - elapsed;
+
+    if (secondsLeft % 300 === 0 && secondsLeft !== serverSeconds) {
+      sendProgressUpdate();
+    }
+
     if (secondsLeft <= 0) {
       secondsLeft = 0;
       clearInterval(timerInterval);
       timerEl.innerText = "⏱ 0:00";
-      if (!reviewMode) showReview();
+      finalSubmit(); 
       return;
     }
     const m = Math.floor(secondsLeft / 60);
@@ -441,7 +448,7 @@ function showReview() {
     html += `<div class="review-row"><div class="review-qnum">Q${i + 1}</div><div class="review-ans ${ans ? '' : 'missing'}">${ans || 'No answer given'}</div></div>`;
   });
   html += `</div><div style="display:flex;gap:8px;">`;
-  if (examStarted) html += `<button class="action-btn" onclick="resumeFromReview()" style="border-color:rgba(0,220,255,0.4);color:#00dcff;flex:1;">Go Back</button>`;
+  if (examStarted && secondsLeft > 0) html += `<button class="action-btn" onclick="resumeFromReview()" style="border-color:rgba(0,220,255,0.4);color:#00dcff;flex:1;">Go Back</button>`;
   html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;flex:2;">Submit Exam</button></div></div>`;
   document.getElementById('question').innerHTML = html;
 }
