@@ -287,16 +287,23 @@ function startGlobalTimer(serverSeconds) {
 }
 
 async function sendProgressUpdate() {
-  lastProgressSent = Date.now();
-  await post("PROGRESS_UPDATE", {
-    discordId: window.dUser.id,
-    discordUsername: window.dUser.username,
-    robloxId: window.rUser,
-    username: window.rUsername,
-    answeredCount: getAnsweredCount(),
-    totalCount: mainQuestions.length,
-    secondsLeft
-  });
+  try {
+    const res = await post("PROGRESS_UPDATE", {
+      discordId: window.dUser.id,
+      discordUsername: window.dUser.username,
+      robloxId: window.rUser,
+      username: window.rUsername,
+      answeredCount: getAnsweredCount(),
+      totalCount: mainQuestions.length,
+      secondsLeft
+    });
+
+    if (res.ok) {
+      lastProgressSent = Date.now();
+    }
+  } catch (err) {
+    console.log("Progress update failed", err);
+  }
 }
 
 async function startExam() {
