@@ -423,7 +423,7 @@ function jumpToQuestion(i) {
 
 function loadQuestion() {
   setCardScrollable(false);
-  document.getElementById('progress').innerText = `Examinee Task ${current + 1} / ${mainQuestions.length}`;
+  document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
   updateSegTracker();
   const answerEl = document.getElementById('answer');
   const submitBtn = document.getElementById('submit-btn');
