@@ -194,8 +194,7 @@ window.addEventListener('blur', () => {
   if (!examStarted || submitted) return;
   document.getElementById('main-content').classList.add('blur-shield');
   document.getElementById('overlay').classList.add('active');
-  // Silently log focus loss
-  post("BLUR_EVENT", { discordId: window.dUser?.id, discordUsername: window.dUser?.username, robloxId: window.rUser, username: window.rUsername });
+  logSecurityEvent("BLUR_EVENT");
 });
 
 window.addEventListener('focus', () => {
@@ -206,24 +205,12 @@ window.addEventListener('focus', () => {
 
 document.addEventListener('visibilitychange', () => {
   if (!examStarted || submitted) return;
-  if (document.hidden) post("BLUR_EVENT", { discordId: window.dUser?.id, discordUsername: window.dUser?.username, robloxId: window.rUser, username: window.rUsername });
+  if (document.hidden) logSecurityEvent("BLUR_EVENT");
 });
 
 window.addEventListener('keyup', (e) => {
   if (e.key === 'PrintScreen') {
-    const screenshotPayload = {
-      type: "SCREENSHOT_EVENT",
-      discordId: window.dUser?.id,
-      discordUsername: window.dUser?.username,
-      robloxId: window.rUser,
-      username: window.rUsername
-    };
-    fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(screenshotPayload),
-      keepalive: true
-    });
+    logSecurityEvent("SCREENSHOT_EVENT");
     try { navigator.clipboard.writeText('ACCESS DENIED · screenshot detected'); } catch(err) {}
     document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>`;
   }
@@ -361,7 +348,7 @@ async function startExam() {
   try {
     [questRes, logRes] = await Promise.all([
       post("FETCH_QUESTIONS"),
-      post("START_EXAM_LOG", { discordId: window.dUser.id, robloxId: window.rUser, discordUsername: window.dUser.username, username: window.rUsername })
+      post("START_EXAM_LOG", { discordId: window.dUser.id, discordUsername: window.dUser.username, robloxId: window.rUser, username: window.rUsername })
     ]);
   } catch {
     document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error. Please refresh and try again.</div>`;
