@@ -330,14 +330,25 @@ async function startExam() {
   setAppWidth('narrow');
   document.getElementById('metaRow').style.display = 'flex';
   document.getElementById('segTracker').style.display = 'flex';
-  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing...</div>`;
+
+  const q = document.getElementById('question');
+  q.classList.remove('scrollable');   
+  q.style.textAlign = 'center';     
+  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing...</div>`;
+
   try {
     const [qRes, lRes] = await Promise.all([
       post("FETCH_QUESTIONS"),
-      post("START_EXAM_LOG", { discordId: window.dUser.id, discordUsername: window.dUser.username, robloxId: window.rUser, username: window.rUsername })
+      post("START_EXAM_LOG", {
+        discordId: window.dUser.id,
+        discordUsername: window.dUser.username,
+        robloxId: window.rUser,
+        username: window.rUsername
+      })
     ]);
     const data = await qRes.json();
     const log = await lRes.json();
+
     mainQuestions = data.questions;
     answers = new Array(mainQuestions.length).fill("");
     lockedQuestions = new Array(mainQuestions.length).fill(false);
@@ -347,7 +358,30 @@ async function startExam() {
     startGlobalTimer(log.secondsLeft);
     loadQuestion();
   } catch {
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Failed to start.</div>`;
+    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Failed to start.</div>`;
+  }
+}
+
+function loadQuestion() {
+  const q = document.getElementById('question');
+
+  if (mainQuestions[current].length > 250) { 
+    q.classList.add('scrollable');
+    q.style.textAlign = 'left';
+  } else {
+    q.classList.remove('scrollable');
+    q.style.textAlign = 'center';
+  }
+
+  document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
+  updateSegTracker();
+  const ans = document.getElementById('answer');
+  const lk = lockedQuestions[current];
+  ans.value = answers[current];
+  ans.disabled = lk;
+  document.getElementById('submit-btn').disabled = lk;
+  document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
+  q.innerText = mainQuestions[current];
   }
 }
 
