@@ -81,6 +81,7 @@
   .review-qnum { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700; color: rgba(255,105,180,0.7); min-width: 26px; padding-top: 1px; letter-spacing: 0.5px; }
   .review-ans { font-size: 11.5px; color: #8aa4b0; line-height: 1.55; word-break: break-word; text-align: left; }
   .review-ans.missing { color: rgba(255,58,58,0.6); font-style: italic; }
+  .cooldown-timer-box { background:rgba(255,58,58,0.05); border:1px solid rgba(255,58,58,0.2); padding:15px; border-radius:10px; margin-top: 10px; }
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -143,6 +144,13 @@ function setAppWidth(mode) {
 
 function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
+}
+
+function formatMs(ms) {
+  if (!ms || ms <= 0) return "0m";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
 async function post(type, extra = {}) {
@@ -266,7 +274,16 @@ async function showInstructions() {
   }
   if (cooldown.onCooldown) {
     setAppWidth('narrow');
-    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div style="font-size:12px;color:#556a74;margin-bottom:6px;">You have already submitted an exam in the last 24 hours.</div></div>`;
+    const timeLeft = formatMs(cooldown.msRemaining);
+    document.getElementById('question').innerHTML = `
+      <div style="text-align:center;">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div>
+        <div style="font-size:12px;color:#556a74;margin-bottom:12px;">You must wait before attempting this exam again.</div>
+        <div class="cooldown-timer-box">
+          <div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Remaining Wait Time</div>
+          <div style="font-family:'Rajdhani'; font-size:22px; color:#ff3a3a; font-weight:700; text-shadow: 0 0 10px rgba(255,58,58,0.3);">${timeLeft}</div>
+        </div>
+      </div>`;
     return;
   }
   if (!rankData.eligible) {
