@@ -241,23 +241,43 @@ async function showInstructions() {
   window.rUser = rankData.robloxId;
   window.rUsername = rankData.robloxUsername;
   document.getElementById('notice').style.display = 'none';
-  document.getElementById('question').innerHTML = `
-    <div class="instr-wrap">
-      <div class="instr-title">Phase 4 — Written Exam</div>
-      <div class="info-grid">
-        <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 min</div></div>
-        <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
-        <div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>
-        <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
-      </div>
-      <div class="instr-section">
-        <div class="instr-section-title">Rules</div>
-        <div class="rule-item"><div class="rule-dot"></div><span>Answers are <span class="rule-bold">final</span>. Once submitted, they cannot be edited.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>Closing or refreshing will result in an abandonment log.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>The use of AI tools is strictly <span class="rule-bold">prohibited</span>.</span></div>
-      </div>
-      <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:4px;">Begin Exam</button>
-    </div>`;
+  const q = document.getElementById('question');
+q.classList.add('scrollable');
+
+q.innerHTML = `
+  <div class="instr-wrap">
+    <div class="instr-title">Phase 4 — Written Exam</div>
+    <div class="info-grid">
+      <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 min</div></div>
+      <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
+      <div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>
+      <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
+    </div>
+    <div class="instr-section">
+      <div class="instr-section-title">Exam Details</div>
+      <div class="rule-item"><div class="rule-dot"></div><span>You will have <span class="rule-bold">50 minutes</span> to complete all questions.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>You can use the blocks below the question counter to navigate between questions (e.g. start at Q5 → switch to Q12).</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>You can move freely, but once an answer is <span class="rule-bold">submitted</span>, it cannot be changed.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-bold">24 hour cooldown</span> between submissions.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>This is an <span class="rule-bold">open book exam</span>. You may use any documents.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>You must link your Discord account. A <span class="rule-bold">Bloxlink check</span> will be performed. Verification may fail if Bloxlink is down or has reached its daily API limit (500 requests).</span></div>
+    </div>
+    <div class="instr-section">
+      <div class="instr-section-title">Exam Rules</div>
+      <div class="rule-item"><div class="rule-dot"></div><span>The use of <span class="rule-bold">AI is prohibited</span>.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed</span>. Answers must be in your own words. Copying will result in failure.</span></div>
+      <div class="rule-item"><div class="rule-dot"></div><span>You may not <span class="rule-bold">share, screenshot, or discuss</span> exam questions.</span></div>
+    </div>
+    <div class="instr-section">
+      <div class="instr-section-title">Support</div>
+      <div class="rule-item"><div class="rule-dot"></div><span>If you experience issues, contact TMP High Command.</span></div>
+    </div>
+    <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">
+      Begin Exam
+    </button>
+  </div>
+`;
 }
 
 function startGlobalTimer(serverSeconds) {
