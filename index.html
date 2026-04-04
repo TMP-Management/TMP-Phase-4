@@ -132,7 +132,9 @@ const REDIRECT = window.location.origin + window.location.pathname;
 let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
-let lastProgressSent = 0;
+let lastProgressSent = null;
+let questionStartTime = null;
+let questionDurations = [];
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
 function setAppWidth(mode) {
@@ -143,6 +145,16 @@ function setAppWidth(mode) {
 
 function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
+}
+
+function calcAvgFromDurations() {
+  const recorded = questionDurations.filter(d => d > 0);
+  if (!recorded.length) return "0s";
+  const avg = Math.round(recorded.reduce((a, b) => a + b, 0) / recorded.length);
+  if (avg < 60) return `${avg}s`;
+  const mins = Math.floor(avg / 60);
+  const secs = avg % 60;
+  return `${mins}m ${secs}s`;
 }
 
 async function post(type, extra = {}) {
@@ -165,10 +177,10 @@ async function logSecurityEvent(type) {
   } catch(err) {}
 }
 
-async function sendAbandonedEvent() {
+function sendAbandonedEvent() {
   if (!examStarted || submitted) return;
   try {
-    navigator.sendBeacon(WORKER_URL, JSON.stringify({
+    const payload = JSON.stringify({
       type: "EXAM_ABANDONED",
       discordId: window.dUser?.id,
       discordUsername: window.dUser?.username,
@@ -176,8 +188,10 @@ async function sendAbandonedEvent() {
       username: window.rUsername,
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
-      secondsLeft: secondsLeft
-    }));
+      secondsLeft: secondsLeft,
+      avgTime: calcAvgFromDurations()
+    });
+    navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: "application/json" }));
   } catch(err) {}
 }
 
@@ -317,7 +331,9 @@ function startGlobalTimer(serverSeconds) {
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
 
-    if (!lastProgressSent || Date.now() - lastProgressSent > 600000) {
+    const now = Date.now();
+    if (lastProgressSent === null || (now - lastProgressSent) >= 600000) {
+      lastProgressSent = now;
       sendProgressUpdate();
     }
   };
@@ -327,18 +343,16 @@ function startGlobalTimer(serverSeconds) {
 
 async function sendProgressUpdate() {
   try {
-    const res = await post("PROGRESS_UPDATE", {
+    await post("PROGRESS_UPDATE", {
       discordId: window.dUser.id,
       discordUsername: window.dUser.username,
       robloxId: window.rUser,
       username: window.rUsername,
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
-      secondsLeft
+      secondsLeft,
+      avgTime: calcAvgFromDurations()
     });
-    if (res.ok) {
-      lastProgressSent = Date.now();
-    }
   } catch (err) {
     console.log("Progress update failed", err);
   }
@@ -370,6 +384,7 @@ async function startExam() {
     mainQuestions = data.questions;
     answers = new Array(mainQuestions.length).fill("");
     lockedQuestions = new Array(mainQuestions.length).fill(false);
+    questionDurations = new Array(mainQuestions.length).fill(0);
     examStarted = true;
     buildSegTracker(mainQuestions.length);
     document.getElementById('input-area').style.display = 'flex';
@@ -381,6 +396,7 @@ async function startExam() {
 }
 
 function loadQuestion() {
+  questionStartTime = Date.now();
   const q = document.getElementById('question');
 
   if (mainQuestions[current].length > 250) {
@@ -409,7 +425,15 @@ function buildSegTracker(total) {
     const b = document.createElement('div');
     b.className = 'seg-block clickable';
     b.id = `seg-${i}`;
-    b.onclick = () => { if(!reviewMode) { current = i; loadQuestion(); } };
+    b.onclick = () => {
+      if (!reviewMode) {
+        if (questionStartTime !== null && !lockedQuestions[current]) {
+          questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
+        }
+        current = i;
+        loadQuestion();
+      }
+    };
     tracker.appendChild(b);
   }
 }
@@ -428,6 +452,9 @@ function updateSegTracker() {
 function saveAndNext() {
   const val = document.getElementById('answer').value.trim();
   if (!val) return;
+  if (questionStartTime !== null) {
+    questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
+  }
   answers[current] = val;
   lockedQuestions[current] = true;
   if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
@@ -441,8 +468,8 @@ function showReview() {
   let html = `<div style="width:100%;"><div class="review-header">Review Submissions</div>`;
   html += `<div class="review-list">`;
   mainQuestions.forEach((q, i) => {
-    const haAnswer = answers[i] && answers[i].trim();
-    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans${haAnswer ? '' : ' missing'}">${haAnswer ? answers[i] : 'No answer'}</div></div>`;
+    const hasAnswer = answers[i] && answers[i].trim();
+    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans${hasAnswer ? '' : ' missing'}">${hasAnswer ? answers[i] : 'No answer'}</div></div>`;
   });
   html += `</div><div style="display:flex;gap:8px;">`;
   if (secondsLeft > 0) html += `<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>`;
@@ -471,7 +498,8 @@ async function finalSubmit() {
       robloxId: window.rUser,
       username: window.rUsername,
       answers,
-      used: totalUsed
+      used: totalUsed,
+      avgTime: calcAvgFromDurations()
     });
     if (res.ok) {
       document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">The examinee's responses have been recorded.</p></div>`;
