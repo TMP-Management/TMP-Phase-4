@@ -132,8 +132,7 @@ const REDIRECT = window.location.href.split('#')[0];
 let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
-let questionStartTime = null;
-let questionDurations = [];
+let lastProgressSent = 0;
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
 function setAppWidth(mode) {
@@ -144,16 +143,6 @@ function setAppWidth(mode) {
 
 function getAnsweredCount() {
   return answers.filter(a => a && a.trim()).length;
-}
-
-function formatMs(ms) {
-  if (!ms || ms <= 0) return "0h 0m 0s";
-  let seconds = Math.floor(ms / 1000);
-  const h = Math.floor(seconds / 3600);
-  seconds %= 3600;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${h}h ${m}m ${s}s`;
 }
 
 async function post(type, extra = {}) {
@@ -176,20 +165,6 @@ async function logSecurityEvent(type) {
   } catch(err) {}
 }
 
-function sendAbandonBeacon() {
-  if (!examStarted || submitted) return;
-  const payload = JSON.stringify({
-    type: "ABANDON_EXAM",
-    discordId: window.dUser?.id,
-    discordUsername: window.dUser?.username,
-    robloxId: window.rUser,
-    username: window.rUsername
-  });
-  fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true });
-}
-
-window.addEventListener('beforeunload', sendAbandonBeacon);
-
 window.addEventListener('blur', () => {
   if (!examStarted || submitted) return;
   document.getElementById('main-content').classList.add('blur-shield');
@@ -203,16 +178,10 @@ window.addEventListener('focus', () => {
   document.getElementById('overlay').classList.remove('active');
 });
 
-document.addEventListener('visibilitychange', () => {
-  if (!examStarted || submitted) return;
-  if (document.hidden) logSecurityEvent("BLUR_EVENT");
-});
-
 window.addEventListener('keyup', (e) => {
   if (e.key === 'PrintScreen') {
     logSecurityEvent("SCREENSHOT_EVENT");
-    try { navigator.clipboard.writeText('ACCESS DENIED · screenshot detected'); } catch(err) {}
-    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>`;
+    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>`;
   }
 });
 
@@ -220,7 +189,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const answerEl = document.getElementById('answer');
   answerEl.addEventListener('paste', e => e.preventDefault());
   answerEl.addEventListener('copy', e => e.preventDefault());
-  answerEl.addEventListener('cut', e => e.preventDefault());
   answerEl.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); }
   });
@@ -238,16 +206,9 @@ function loginDiscord() {
   window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`;
 }
 
-function setCardScrollable(on) {
-  const q = document.getElementById('question');
-  if (on) q.classList.add('scrollable');
-  else q.classList.remove('scrollable');
-}
-
 async function showInstructions() {
   setAppWidth('wide');
-  setCardScrollable(false);
-  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying access...</div>`;
+  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>`;
   let cooldown, rankData;
   try {
     const [cr, rr] = await Promise.all([
@@ -257,32 +218,29 @@ async function showInstructions() {
     cooldown = await cr.json();
     rankData = await rr.json();
   } catch {
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error. Please refresh.</div>`;
+    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>`;
     return;
   }
   if (cooldown.onCooldown) {
     setAppWidth('narrow');
-    const timeLeft = formatMs(cooldown.msRemaining);
     document.getElementById('question').innerHTML = `
       <div style="text-align:center;">
-        <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div>
-        <div style="font-size:12px;color:#556a74;margin-bottom:12px;">You must wait before attempting this exam again.</div>
+        <div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div>
         <div class="cooldown-timer-box">
-          <div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Remaining Wait Time</div>
-          <div style="font-family:'Rajdhani'; font-size:22px; color:#ff3a3a; font-weight:700; text-shadow: 0 0 10px rgba(255,58,58,0.3);">${timeLeft}</div>
+          <div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Wait Time Remaining</div>
+          <div style="font-family:'Rajdhani'; font-size:22px; color:#ff3a3a; font-weight:700;">${cooldown.timeRemaining}</div>
         </div>
       </div>`;
     return;
   }
   if (!rankData.eligible) {
     setAppWidth('narrow');
-    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">You do not meet the rank requirement for this examination.</div></div>`;
+    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>`;
     return;
   }
   window.rUser = rankData.robloxId;
   window.rUsername = rankData.robloxUsername;
   document.getElementById('notice').style.display = 'none';
-  setCardScrollable(true);
   document.getElementById('question').innerHTML = `
     <div class="instr-wrap">
       <div class="instr-title">Phase 4 — Written Exam</div>
@@ -293,19 +251,10 @@ async function showInstructions() {
         <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
       </div>
       <div class="instr-section">
-        <div class="instr-section-title">Exam Details</div>
-        <div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-hl">50 minutes</span> once the timer starts. It cannot be paused or reset.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>Navigate freely between questions using the blocks below the counter — you don't have to answer in order.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Answers are final.</span> Once you submit a question it is locked and cannot be edited.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Progress is not saved.</span> Closing or refreshing the page will lose all unanswered questions.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>This is <span class="rule-hl">open book</span> — you may reference any documents during the exam.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-hl">24-hour cooldown</span> between exam attempts.</span></div>
-      </div>
-      <div class="instr-section">
         <div class="instr-section-title">Rules</div>
-        <div class="rule-item"><div class="rule-dot"></div><span>The use of AI to generate answers is <span class="rule-bold">prohibited</span>.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>Answers must be in your own words.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>Do not share, screenshot, or discuss exam questions with others.</span></div>
+        <div class="rule-item"><div class="rule-dot"></div><span>Answers are <span class="rule-bold">final</span>. Once submitted, they cannot be edited.</span></div>
+        <div class="rule-item"><div class="rule-dot"></div><span>Closing or refreshing will result in an abandonment log.</span></div>
+        <div class="rule-item"><div class="rule-dot"></div><span>The use of AI tools is strictly <span class="rule-bold">prohibited</span>.</span></div>
       </div>
       <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:4px;">Begin Exam</button>
     </div>`;
@@ -316,14 +265,11 @@ function startGlobalTimer(serverSeconds) {
   timerStartEpoch = Date.now();
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
-  timerEl.classList.remove('danger');
   const tick = () => {
     const elapsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
     secondsLeft = serverSeconds - elapsed;
     if (secondsLeft <= 0) {
-      secondsLeft = 0;
       clearInterval(timerInterval);
-      timerEl.innerText = "⏱ 0:00";
       finalSubmit();
       return;
     }
@@ -331,45 +277,51 @@ function startGlobalTimer(serverSeconds) {
     const s = secondsLeft % 60;
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
+    
+    if (Date.now() - lastProgressSent > 300000) {
+      sendProgressUpdate();
+    }
   };
   tick();
   timerInterval = setInterval(tick, 1000);
 }
 
+async function sendProgressUpdate() {
+  lastProgressSent = Date.now();
+  await post("PROGRESS_UPDATE", {
+    discordId: window.dUser.id,
+    discordUsername: window.dUser.username,
+    robloxId: window.rUser,
+    username: window.rUsername,
+    answeredCount: getAnsweredCount(),
+    totalCount: mainQuestions.length,
+    secondsLeft
+  });
+}
+
 async function startExam() {
   setAppWidth('narrow');
-  reviewMode = false;
-  submitted = false;
-  setCardScrollable(false);
   document.getElementById('metaRow').style.display = 'flex';
   document.getElementById('segTracker').style.display = 'flex';
-  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Loading exam...</div>`;
-  let questRes, logRes;
+  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing...</div>`;
   try {
-    [questRes, logRes] = await Promise.all([
+    const [qRes, lRes] = await Promise.all([
       post("FETCH_QUESTIONS"),
       post("START_EXAM_LOG", { discordId: window.dUser.id, discordUsername: window.dUser.username, robloxId: window.rUser, username: window.rUsername })
     ]);
+    const data = await qRes.json();
+    const log = await lRes.json();
+    mainQuestions = data.questions;
+    answers = new Array(mainQuestions.length).fill("");
+    lockedQuestions = new Array(mainQuestions.length).fill(false);
+    examStarted = true;
+    buildSegTracker(mainQuestions.length);
+    document.getElementById('input-area').style.display = 'flex';
+    startGlobalTimer(log.secondsLeft);
+    loadQuestion();
   } catch {
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error. Please refresh and try again.</div>`;
-    return;
+    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Failed to start.</div>`;
   }
-  const data = await questRes.json();
-  const logData = await logRes.json();
-  mainQuestions = data.questions;
-  answers = new Array(mainQuestions.length).fill("");
-  lockedQuestions = new Array(mainQuestions.length).fill(false);
-  current = 0;
-  const serverSeconds = Math.floor(Number(logData.secondsLeft));
-  if (serverSeconds <= 0) {
-    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">TIME EXPIRED</div></div>`;
-    return;
-  }
-  examStarted = true;
-  buildSegTracker(mainQuestions.length);
-  document.getElementById('input-area').style.display = 'flex';
-  startGlobalTimer(serverSeconds);
-  loadQuestion();
 }
 
 function buildSegTracker(total) {
@@ -377,8 +329,9 @@ function buildSegTracker(total) {
   tracker.innerHTML = '';
   for (let i = 0; i < total; i++) {
     const b = document.createElement('div');
-    b.className = 'seg-block';
+    b.className = 'seg-block clickable';
     b.id = `seg-${i}`;
+    b.onclick = () => { if(!reviewMode) { current = i; loadQuestion(); } };
     tracker.appendChild(b);
   }
 }
@@ -387,53 +340,28 @@ function updateSegTracker() {
   mainQuestions.forEach((_, i) => {
     const b = document.getElementById(`seg-${i}`);
     if (!b) return;
-    b.className = 'seg-block';
-    if (examStarted && !reviewMode) {
-      b.classList.add('clickable');
-      b.onclick = () => jumpToQuestion(i);
-    }
+    b.className = 'seg-block clickable';
     if (lockedQuestions[i]) b.classList.add('locked');
-    else if (answers[i] && answers[i].trim()) b.classList.add('filled');
+    else if (answers[i].trim()) b.classList.add('filled');
     if (i === current) b.classList.add('current');
   });
 }
 
-function jumpToQuestion(i) {
-  if (reviewMode) return;
-  if (questionStartTime && !lockedQuestions[current]) {
-    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
-    questionDurations[current] = (questionDurations[current] || 0) + elapsed;
-  }
-  current = i;
-  loadQuestion();
-}
-
 function loadQuestion() {
-  setCardScrollable(false);
   document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
   updateSegTracker();
-  const answerEl = document.getElementById('answer');
-  const submitBtn = document.getElementById('submit-btn');
-  const lockedNotice = document.getElementById('locked-notice');
-  const isLocked = lockedQuestions[current];
-  answerEl.value = answers[current] || '';
-  answerEl.disabled = isLocked;
-  submitBtn.disabled = isLocked;
-  lockedNotice.style.display = isLocked ? 'block' : 'none';
+  const ans = document.getElementById('answer');
+  const lk = lockedQuestions[current];
+  ans.value = answers[current];
+  ans.disabled = lk;
+  document.getElementById('submit-btn').disabled = lk;
+  document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
   document.getElementById('question').innerText = mainQuestions[current];
-  if (!isLocked) {
-    questionStartTime = Date.now();
-  }
 }
 
 function saveAndNext() {
   const val = document.getElementById('answer').value.trim();
   if (!val) return;
-  if (questionStartTime) {
-    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
-    questionDurations[current] = (questionDurations[current] || 0) + elapsed;
-    questionStartTime = null;
-  }
   answers[current] = val;
   lockedQuestions[current] = true;
   if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
@@ -442,67 +370,48 @@ function saveAndNext() {
 function showReview() {
   setAppWidth('wide');
   reviewMode = true;
-  setCardScrollable(true);
   document.getElementById('input-area').style.display = 'none';
   updateSegTracker();
-  const answered = getAnsweredCount();
-  const missing = mainQuestions.length - answered;
-  let html = `<div style="width:100%;">`;
-  html += `<div class="review-header">Review Answers</div>`;
-  html += `<div class="review-subhead">Read over your answers before final submission.</div>`;
-  html += `<div class="review-status"><div class="review-stat"><div class="review-dot-a"></div>${answered} answered</div><div class="review-stat"><div class="review-dot-m"></div>${missing} unanswered</div></div>`;
+  let html = `<div style="width:100%;"><div class="review-header">Review Submissions</div>`;
   html += `<div class="review-list">`;
   mainQuestions.forEach((q, i) => {
-    const ans = answers[i] && answers[i].trim();
-    html += `<div class="review-row"><div class="review-qnum">Q${i + 1}</div><div class="review-ans ${ans ? '' : 'missing'}">${ans || 'No answer given'}</div></div>`;
+    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans">${answers[i] || 'No answer'}</div></div>`;
   });
   html += `</div><div style="display:flex;gap:8px;">`;
-  if (examStarted && secondsLeft > 0) html += `<button class="action-btn" onclick="resumeFromReview()" style="border-color:rgba(0,220,255,0.4);color:#00dcff;flex:1;">Go Back</button>`;
-  html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;flex:2;">Submit Exam</button></div></div>`;
+  if (secondsLeft > 0) html += `<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>`;
+  html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>`;
   document.getElementById('question').innerHTML = html;
 }
 
-function resumeFromReview() {
+function resumeExam() {
   setAppWidth('narrow');
   reviewMode = false;
-  setCardScrollable(false);
   document.getElementById('input-area').style.display = 'flex';
   loadQuestion();
 }
 
 async function finalSubmit() {
-  setAppWidth('narrow');
   submitted = true;
-  examStarted = false;
-  reviewMode = true;
   clearInterval(timerInterval);
-  setCardScrollable(false);
+  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting assessment...</div>`;
   const totalUsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
-  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting...</div>`;
   try {
-    const submitRes = await post("SUBMIT_EXAM", {
+    const res = await post("SUBMIT_EXAM", {
       discordId: window.dUser.id,
-      username: window.rUsername,
       discordUsername: window.dUser.username,
       robloxId: window.rUser,
+      username: window.rUsername,
       answers,
-      used: totalUsed,
-      questionDurations: questionDurations.filter(d => d !== undefined),
-      secondsLeft
+      used: totalUsed
     });
-    const result = await submitRes.json();
-    if (submitRes.ok && result.success) {
-      document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#00dcff;letter-spacing:2px;margin-bottom:10px;">SUBMITTED</div><div style="font-size:12px;color:#556a74;line-height:1.6;">Your exam has been received and will be reviewed shortly.</div></div>`;
+    if (res.ok) {
+      document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">The examinee's responses have been recorded.</p></div>`;
       document.getElementById('input-area').style.display = 'none';
       document.getElementById('metaRow').style.display = 'none';
       document.getElementById('segTracker').style.display = 'none';
-    } else {
-      submitted = false; examStarted = true;
-      document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Submission failed.</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
     }
   } catch {
-    submitted = false; examStarted = true;
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
+    document.getElementById('question').innerHTML = `<div>Error submitting.</div>`;
   }
 }
 </script>
