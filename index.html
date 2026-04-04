@@ -278,7 +278,7 @@ function startGlobalTimer(serverSeconds) {
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
     
-    if (Date.now() - lastProgressSent > 600000) {
+    if (!lastProgressSent || Date.now() - lastProgressSent > 600000) {
       sendProgressUpdate();
     }
   };
