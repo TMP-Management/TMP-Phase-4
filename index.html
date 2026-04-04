@@ -128,7 +128,7 @@
 <script>
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
-const REDIRECT = window.location.href.split('#')[0];
+const REDIRECT = window.location.origin + window.location.pathname;
 let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
@@ -196,6 +196,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const hash = new URLSearchParams(window.location.hash.slice(1));
   const token = hash.get('access_token');
   if (token) {
+    history.replaceState(null, document.title, window.location.pathname + window.location.search);
     fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(user => { window.dUser = user; showInstructions(); });
@@ -382,7 +383,6 @@ function loadQuestion() {
   document.getElementById('submit-btn').disabled = lk;
   document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
   q.innerText = mainQuestions[current];
-  }
 }
 
 function buildSegTracker(total) {
@@ -406,18 +406,6 @@ function updateSegTracker() {
     else if (answers[i].trim()) b.classList.add('filled');
     if (i === current) b.classList.add('current');
   });
-}
-
-function loadQuestion() {
-  document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
-  updateSegTracker();
-  const ans = document.getElementById('answer');
-  const lk = lockedQuestions[current];
-  ans.value = answers[current];
-  ans.disabled = lk;
-  document.getElementById('submit-btn').disabled = lk;
-  document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
-  document.getElementById('question').innerText = mainQuestions[current];
 }
 
 function saveAndNext() {
