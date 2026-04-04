@@ -179,14 +179,11 @@ async function logSecurityEvent(type) {
 function sendAbandonBeacon() {
   if (!examStarted || submitted) return;
   const payload = JSON.stringify({
-    type: "EXAM_ABANDONED",
+    type: "ABANDON_EXAM",
     discordId: window.dUser?.id,
     discordUsername: window.dUser?.username,
     robloxId: window.rUser,
-    username: window.rUsername,
-    secondsLeft,
-    answeredCount: getAnsweredCount(),
-    totalCount: mainQuestions.length
+    username: window.rUsername
   });
   fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true });
 }
@@ -197,7 +194,8 @@ window.addEventListener('blur', () => {
   if (!examStarted || submitted) return;
   document.getElementById('main-content').classList.add('blur-shield');
   document.getElementById('overlay').classList.add('active');
-  logSecurityEvent("BLUR_EVENT");
+  // Silently log focus loss
+  post("BLUR_EVENT", { discordId: window.dUser?.id, discordUsername: window.dUser?.username, robloxId: window.rUser, username: window.rUsername });
 });
 
 window.addEventListener('focus', () => {
@@ -208,7 +206,7 @@ window.addEventListener('focus', () => {
 
 document.addEventListener('visibilitychange', () => {
   if (!examStarted || submitted) return;
-  if (document.hidden) logSecurityEvent("BLUR_EVENT");
+  if (document.hidden) post("BLUR_EVENT", { discordId: window.dUser?.id, discordUsername: window.dUser?.username, robloxId: window.rUser, username: window.rUsername });
 });
 
 window.addEventListener('keyup', (e) => {
@@ -425,7 +423,7 @@ function jumpToQuestion(i) {
 
 function loadQuestion() {
   setCardScrollable(false);
-  document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
+  document.getElementById('progress').innerText = `Examinee Task ${current + 1} / ${mainQuestions.length}`;
   updateSegTracker();
   const answerEl = document.getElementById('answer');
   const submitBtn = document.getElementById('submit-btn');
