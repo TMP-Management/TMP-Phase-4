@@ -147,10 +147,13 @@ function getAnsweredCount() {
 }
 
 function formatMs(ms) {
-  if (!ms || ms <= 0) return "0m";
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  if (!ms || ms <= 0) return "0h 0m 0s";
+  let seconds = Math.floor(ms / 1000);
+  const h = Math.floor(seconds / 3600);
+  seconds %= 3600;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${h}h ${m}m ${s}s`;
 }
 
 async function post(type, extra = {}) {
