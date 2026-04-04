@@ -131,6 +131,8 @@ const REDIRECT = window.location.href.split('#')[0];
 let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 3000;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
+let questionStartTime = null;
+let questionDurations = [];
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
 function setAppWidth(mode) {
@@ -159,21 +161,6 @@ async function logSecurityEvent(type) {
       discordUsername: window.dUser?.username,
       robloxId: window.rUser,
       username: window.rUsername
-    });
-  } catch(err) {}
-}
-
-async function sendProgressUpdate() {
-  if (!examStarted || submitted) return;
-  try {
-    await post("PROGRESS_UPDATE", {
-      discordId: window.dUser?.id,
-      discordUsername: window.dUser?.username,
-      robloxId: window.rUser,
-      username: window.rUsername,
-      answeredCount: getAnsweredCount(),
-      totalCount: mainQuestions.length,
-      secondsLeft
     });
   } catch(err) {}
 }
@@ -213,12 +200,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) logSecurityEvent("BLUR_EVENT");
 });
 
-window.addEventListener('keydown', (e) => {
-  if (e.key === 'PrintScreen') {
-    e.preventDefault();
-  }
-});
-
 window.addEventListener('keyup', (e) => {
   if (e.key === 'PrintScreen') {
     const screenshotPayload = {
@@ -234,8 +215,8 @@ window.addEventListener('keyup', (e) => {
       body: JSON.stringify(screenshotPayload),
       keepalive: true
     });
-    try { navigator.clipboard.writeText('ACCESS DENIED · SECURITY BREACH LOGGED'); } catch(err) {}
-    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">UNAUTHORIZED SCREEN CAPTURE RECORDED</p></div>`;
+    try { navigator.clipboard.writeText('ACCESS DENIED · screenshot detected'); } catch(err) {}
+    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">CRITICAL SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>`;
   }
 });
 
@@ -285,7 +266,7 @@ async function showInstructions() {
   }
   if (cooldown.onCooldown) {
     setAppWidth('narrow');
-    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div style="font-size:12px;color:#556a74;margin-bottom:6px;">You have already submitted an exam in the last 24 hours.</div><div style="font-family:'Rajdhani',sans-serif;font-size:13px;color:#00dcff;letter-spacing:1px;">Try again in <span style="color:#ff69b4;font-weight:700;">${cooldown.timeRemaining}</span></div></div>`;
+    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div style="font-size:12px;color:#556a74;margin-bottom:6px;">You have already submitted an exam in the last 24 hours.</div></div>`;
     return;
   }
   if (!rankData.eligible) {
@@ -314,7 +295,6 @@ async function showInstructions() {
         <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Progress is not saved.</span> Closing or refreshing the page will lose all unanswered questions.</span></div>
         <div class="rule-item"><div class="rule-dot"></div><span>This is <span class="rule-hl">open book</span> — you may reference any documents during the exam.</span></div>
         <div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-hl">24-hour cooldown</span> between exam attempts.</span></div>
-        <div class="rule-item"><div class="rule-dot"></div><span>Bloxlink verification is required. Ensure you are verified before starting.</span></div>
       </div>
       <div class="instr-section">
         <div class="instr-section-title">Rules</div>
@@ -335,11 +315,6 @@ function startGlobalTimer(serverSeconds) {
   const tick = () => {
     const elapsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
     secondsLeft = serverSeconds - elapsed;
-
-    if (secondsLeft % 300 === 0 && secondsLeft !== serverSeconds) {
-      sendProgressUpdate();
-    }
-
     if (secondsLeft <= 0) {
       secondsLeft = 0;
       clearInterval(timerInterval);
@@ -382,7 +357,7 @@ async function startExam() {
   current = 0;
   const serverSeconds = Math.floor(Number(logData.secondsLeft));
   if (serverSeconds <= 0) {
-    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">TIME EXPIRED</div><div style="font-size:12px;color:#556a74;">Your exam window has closed.</div></div>`;
+    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">TIME EXPIRED</div></div>`;
     return;
   }
   examStarted = true;
@@ -420,6 +395,10 @@ function updateSegTracker() {
 
 function jumpToQuestion(i) {
   if (reviewMode) return;
+  if (questionStartTime && !lockedQuestions[current]) {
+    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+    questionDurations[current] = (questionDurations[current] || 0) + elapsed;
+  }
   current = i;
   loadQuestion();
 }
@@ -437,11 +416,19 @@ function loadQuestion() {
   submitBtn.disabled = isLocked;
   lockedNotice.style.display = isLocked ? 'block' : 'none';
   document.getElementById('question').innerText = mainQuestions[current];
+  if (!isLocked) {
+    questionStartTime = Date.now();
+  }
 }
 
 function saveAndNext() {
   const val = document.getElementById('answer').value.trim();
   if (!val) return;
+  if (questionStartTime) {
+    const elapsed = Math.floor((Date.now() - questionStartTime) / 1000);
+    questionDurations[current] = (questionDurations[current] || 0) + elapsed;
+    questionStartTime = null;
+  }
   answers[current] = val;
   lockedQuestions[current] = true;
   if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
@@ -485,6 +472,7 @@ async function finalSubmit() {
   reviewMode = true;
   clearInterval(timerInterval);
   setCardScrollable(false);
+  const totalUsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
   document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting...</div>`;
   try {
     const submitRes = await post("SUBMIT_EXAM", {
@@ -493,31 +481,23 @@ async function finalSubmit() {
       discordUsername: window.dUser.username,
       robloxId: window.rUser,
       answers,
+      used: totalUsed,
+      questionDurations: questionDurations.filter(d => d !== undefined),
       secondsLeft
     });
     const result = await submitRes.json();
     if (submitRes.ok && result.success) {
-      if (result.discordRejected) {
-        document.getElementById('question').innerHTML = `
-          <div style="text-align:center;">
-            <div style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:#FF8C00;letter-spacing:2px;margin-bottom:10px;">⚠ SUBMITTED — DELIVERY ISSUE</div>
-            <div style="font-size:12px;color:#8aa4b0;line-height:1.7;margin-bottom:10px;">Your exam was received, but Discord rejected the formatted submission. Your answers have been automatically delivered as a TXT file attachment instead and will still be reviewed.</div>
-            <div style="font-size:10.5px;color:rgba(255,58,58,0.55);font-family:'Rajdhani',sans-serif;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,58,58,0.15);border-radius:8px;padding:8px 12px;background:rgba(255,58,58,0.04);">Discord error: ${result.discordError || "Unknown error"}</div>
-          </div>`;
-      } else {
-        document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#00dcff;letter-spacing:2px;margin-bottom:10px;">SUBMITTED</div><div style="font-size:12px;color:#556a74;line-height:1.6;">Your exam has been received and will be reviewed shortly.</div></div>`;
-      }
+      document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#00dcff;letter-spacing:2px;margin-bottom:10px;">SUBMITTED</div><div style="font-size:12px;color:#556a74;line-height:1.6;">Your exam has been received and will be reviewed shortly.</div></div>`;
       document.getElementById('input-area').style.display = 'none';
       document.getElementById('metaRow').style.display = 'none';
       document.getElementById('segTracker').style.display = 'none';
     } else {
       submitted = false; examStarted = true;
-      const errorMsg = result.error || "Submission failed.";
-      document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">${errorMsg}</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
+      document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Submission failed.</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
     }
   } catch {
     submitted = false; examStarted = true;
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error. Your answers were not sent.</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
+    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div><button class="action-btn" onclick="showReview()" style="margin-top:10px;">Try Again</button>`;
   }
 }
 </script>
