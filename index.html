@@ -165,6 +165,25 @@ async function logSecurityEvent(type) {
   } catch(err) {}
 }
 
+async function sendAbandonedEvent() {
+  if (!examStarted || submitted) return;
+  try {
+    navigator.sendBeacon(WORKER_URL, JSON.stringify({
+      type: "EXAM_ABANDONED",
+      discordId: window.dUser?.id,
+      discordUsername: window.dUser?.username,
+      robloxId: window.rUser,
+      username: window.rUsername,
+      answeredCount: getAnsweredCount(),
+      totalCount: mainQuestions.length,
+      secondsLeft: secondsLeft
+    }));
+  } catch(err) {}
+}
+
+window.addEventListener('pagehide', sendAbandonedEvent);
+window.addEventListener('beforeunload', sendAbandonedEvent);
+
 window.addEventListener('blur', () => {
   if (!examStarted || submitted) return;
   document.getElementById('main-content').classList.add('blur-shield');
@@ -243,9 +262,8 @@ async function showInstructions() {
   window.rUsername = rankData.robloxUsername;
   document.getElementById('notice').style.display = 'none';
   const q = document.getElementById('question');
-q.classList.add('scrollable');
-
-q.innerHTML = `
+  q.classList.add('scrollable');
+  q.innerHTML = `
   <div class="instr-wrap">
     <div class="instr-title">Phase 4 — Written Exam</div>
     <div class="info-grid">
@@ -298,7 +316,7 @@ function startGlobalTimer(serverSeconds) {
     const s = secondsLeft % 60;
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
-    
+
     if (!lastProgressSent || Date.now() - lastProgressSent > 600000) {
       sendProgressUpdate();
     }
@@ -318,7 +336,6 @@ async function sendProgressUpdate() {
       totalCount: mainQuestions.length,
       secondsLeft
     });
-
     if (res.ok) {
       lastProgressSent = Date.now();
     }
@@ -333,8 +350,8 @@ async function startExam() {
   document.getElementById('segTracker').style.display = 'flex';
 
   const q = document.getElementById('question');
-  q.classList.remove('scrollable');   
-  q.style.textAlign = 'center';     
+  q.classList.remove('scrollable');
+  q.style.textAlign = 'center';
   q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing...</div>`;
 
   try {
@@ -366,7 +383,7 @@ async function startExam() {
 function loadQuestion() {
   const q = document.getElementById('question');
 
-  if (mainQuestions[current].length > 250) { 
+  if (mainQuestions[current].length > 250) {
     q.classList.add('scrollable');
     q.style.textAlign = 'left';
   } else {
@@ -424,14 +441,15 @@ function showReview() {
   let html = `<div style="width:100%;"><div class="review-header">Review Submissions</div>`;
   html += `<div class="review-list">`;
   mainQuestions.forEach((q, i) => {
-    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans">${answers[i] || 'No answer'}</div></div>`;
+    const haAnswer = answers[i] && answers[i].trim();
+    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans${haAnswer ? '' : ' missing'}">${haAnswer ? answers[i] : 'No answer'}</div></div>`;
   });
   html += `</div><div style="display:flex;gap:8px;">`;
   if (secondsLeft > 0) html += `<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>`;
   html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>`;
   const q = document.getElementById('question');
-q.classList.add('scrollable');
-q.innerHTML = html;
+  q.classList.add('scrollable');
+  q.innerHTML = html;
 }
 
 function resumeExam() {
