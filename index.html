@@ -135,6 +135,7 @@ let timerStartEpoch = null, submitted = false;
 let lastProgressSent = null;
 let questionStartTime = null;
 let questionDurations = [];
+let autoSubmitted = false;
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
 function setAppWidth(mode) {
@@ -316,6 +317,7 @@ async function showInstructions() {
 function startGlobalTimer(serverSeconds) {
   if (timerInterval) clearInterval(timerInterval);
   timerStartEpoch = Date.now();
+  lastProgressSent = Date.now();
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
   const tick = () => {
@@ -323,6 +325,7 @@ function startGlobalTimer(serverSeconds) {
     secondsLeft = serverSeconds - elapsed;
     if (secondsLeft <= 0) {
       clearInterval(timerInterval);
+      autoSubmitted = true;
       finalSubmit();
       return;
     }
@@ -332,7 +335,7 @@ function startGlobalTimer(serverSeconds) {
     if (secondsLeft <= 300) timerEl.classList.add('danger');
 
     const now = Date.now();
-    if (lastProgressSent === null || (now - lastProgressSent) >= 600000) {
+    if ((now - lastProgressSent) >= 600000) {
       lastProgressSent = now;
       sendProgressUpdate();
     }
@@ -460,6 +463,10 @@ function saveAndNext() {
   if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function showReview() {
   setAppWidth('wide');
   reviewMode = true;
@@ -469,7 +476,7 @@ function showReview() {
   html += `<div class="review-list">`;
   mainQuestions.forEach((q, i) => {
     const hasAnswer = answers[i] && answers[i].trim();
-    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans${hasAnswer ? '' : ' missing'}">${hasAnswer ? answers[i] : 'No answer'}</div></div>`;
+    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans${hasAnswer ? '' : ' missing'}">${hasAnswer ? escapeHtml(answers[i]) : 'No answer'}</div></div>`;
   });
   html += `</div><div style="display:flex;gap:8px;">`;
   if (secondsLeft > 0) html += `<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>`;
@@ -499,7 +506,8 @@ async function finalSubmit() {
       username: window.rUsername,
       answers,
       used: totalUsed,
-      avgTime: calcAvgFromDurations()
+      avgTime: calcAvgFromDurations(),
+      autoSubmit: autoSubmitted
     });
     if (res.ok) {
       document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">The examinee's responses have been recorded.</p></div>`;
