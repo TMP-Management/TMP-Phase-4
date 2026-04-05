@@ -178,22 +178,28 @@ async function logSecurityEvent(type) {
   } catch(err) {}
 }
 
+let abandonedSent = false;
 function sendAbandonedEvent() {
-  if (!examStarted || submitted) return;
-  try {
-    const payload = JSON.stringify({
-      type: "EXAM_ABANDONED",
-      discordId: window.dUser?.id,
-      discordUsername: window.dUser?.username,
-      robloxId: window.rUser,
-      username: window.rUsername,
-      answeredCount: getAnsweredCount(),
-      totalCount: mainQuestions.length,
-      secondsLeft: secondsLeft,
-      avgTime: calcAvgFromDurations()
-    });
-    navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: "application/json" }));
-  } catch(err) {}
+  if (!examStarted || submitted || abandonedSent) return;
+  abandonedSent = true;
+  const payload = JSON.stringify({
+    type: "EXAM_ABANDONED",
+    discordId: window.dUser?.id,
+    discordUsername: window.dUser?.username,
+    robloxId: window.rUser,
+    username: window.rUsername,
+    answeredCount: getAnsweredCount(),
+    totalCount: mainQuestions.length,
+    secondsLeft: secondsLeft,
+    avgTime: calcAvgFromDurations()
+  });
+  const blob = new Blob([payload], { type: "application/json" });
+  const beaconSent = navigator.sendBeacon(WORKER_URL, blob);
+  if (!beaconSent) {
+    try {
+      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, keepalive: true });
+    } catch(err) {}
+  }
 }
 
 window.addEventListener('pagehide', sendAbandonedEvent);
@@ -214,7 +220,16 @@ window.addEventListener('focus', () => {
 
 window.addEventListener('keyup', (e) => {
   if (e.key === 'PrintScreen') {
-    logSecurityEvent("SCREENSHOT_EVENT");
+    if (examStarted && !submitted) {
+      const payload = JSON.stringify({
+        type: "SCREENSHOT_EVENT",
+        discordId: window.dUser?.id,
+        discordUsername: window.dUser?.username,
+        robloxId: window.rUser,
+        username: window.rUsername
+      });
+      navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: "application/json" }));
+    }
     document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>`;
   }
 });
