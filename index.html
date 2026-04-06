@@ -152,10 +152,7 @@ function calcAvgFromDurations() {
   const recorded = questionDurations.filter(d => d > 0);
   if (!recorded.length) return "0s";
   const avg = Math.round(recorded.reduce((a, b) => a + b, 0) / recorded.length);
-  if (avg < 60) return `${avg}s`;
-  const mins = Math.floor(avg / 60);
-  const secs = avg % 60;
-  return `${mins}m ${secs}s`;
+  return avg < 60 ? `${avg}s` : `${Math.floor(avg / 60)}m ${avg % 60}s`;
 }
 
 async function post(type, extra = {}) {
@@ -257,100 +254,80 @@ function loginDiscord() {
 
 async function showInstructions() {
   setAppWidth('wide');
-  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>`;
-  let cooldown, rankData;
+  const q = document.getElementById('question');
+  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>`;
   try {
     const [cr, rr] = await Promise.all([
       post("CHECK_COOLDOWN", { discordId: window.dUser.id }),
       post("VERIFY_RANK", { discordId: window.dUser.id })
     ]);
-    cooldown = await cr.json();
-    rankData = await rr.json();
-  } catch {
-    document.getElementById('question').innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>`;
-    return;
-  }
-  if (cooldown.onCooldown) {
-    setAppWidth('narrow');
-    document.getElementById('question').innerHTML = `
-      <div style="text-align:center;">
-        <div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div>
-        <div class="cooldown-timer-box">
-          <div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Wait Time Remaining</div>
-          <div style="font-family:'Rajdhani'; font-size:22px; color:#ff3a3a; font-weight:700;">${cooldown.timeRemaining}</div>
+    const cooldown = await cr.json();
+    const rankData = await rr.json();
+
+    if (cooldown.onCooldown) {
+      setAppWidth('narrow');
+      q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div class="cooldown-timer-box"><div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Wait Time Remaining</div><div style="font-family:'Rajdhani'; font-size:22px; color:#ff3a3a; font-weight:700;">${cooldown.timeRemaining}</div></div></div>`;
+      return;
+    }
+    if (!rankData.eligible) {
+      setAppWidth('narrow');
+      q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>`;
+      return;
+    }
+    window.rUser = rankData.robloxId;
+    window.rUsername = rankData.robloxUsername;
+    document.getElementById('notice').style.display = 'none';
+    q.classList.add('scrollable');
+    q.innerHTML = `
+      <div class="instr-wrap">
+        <div class="instr-title">Phase 4 — Written Exam</div>
+        <div class="info-grid">
+          <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 min</div></div>
+          <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
+          <div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>
+          <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
         </div>
+        <div class="instr-section">
+          <div class="instr-section-title">Exam Details</div>
+          <div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">50 minutes</span> to complete the assessment.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>Navigate using blocks. Answers lock upon <span class="rule-bold">Submission</span>.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>AI use and plagiarism will result in an immediate <span class="rule-bold">permanent blacklist</span>.</span></div>
+        </div>
+        <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">Begin Exam</button>
       </div>`;
-    return;
+  } catch {
+    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>`;
   }
-  if (!rankData.eligible) {
-    setAppWidth('narrow');
-    document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>`;
-    return;
-  }
-  window.rUser = rankData.robloxId;
-  window.rUsername = rankData.robloxUsername;
-  document.getElementById('notice').style.display = 'none';
-  const q = document.getElementById('question');
-  q.classList.add('scrollable');
-  q.innerHTML = `
-  <div class="instr-wrap">
-    <div class="instr-title">Phase 4 — Written Exam</div>
-    <div class="info-grid">
-      <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 min</div></div>
-      <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
-      <div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>
-      <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
-    </div>
-    <div class="instr-section">
-      <div class="instr-section-title">Exam Details</div>
-      <div class="rule-item"><div class="rule-dot"></div><span>You will have <span class="rule-bold">50 minutes</span> to complete all questions.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>You can use the blocks below the question counter to navigate between questions (e.g. start at Q5 → switch to Q12).</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>You can move freely, but once an answer is <span class="rule-bold">submitted</span>, it cannot be changed.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-bold">24 hour cooldown</span> between submissions.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>This is an <span class="rule-bold">open book exam</span>. You may use any documents.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>You must link your Discord account. A <span class="rule-bold">Bloxlink check</span> will be performed. Verification may fail if Bloxlink is down or has reached its daily API limit (500 requests).</span></div>
-    </div>
-    <div class="instr-section">
-      <div class="instr-section-title">Exam Rules</div>
-      <div class="rule-item"><div class="rule-dot"></div><span>The use of <span class="rule-bold">AI is prohibited</span>.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed</span>. Answers must be in your own words. Copying will result in failure.</span></div>
-      <div class="rule-item"><div class="rule-dot"></div><span>You may not <span class="rule-bold">share, screenshot, or discuss</span> exam questions.</span></div>
-    </div>
-    <div class="instr-section">
-      <div class="instr-section-title">Support</div>
-      <div class="rule-item"><div class="rule-dot"></div><span>If you experience issues, contact TMP High Command.</span></div>
-    </div>
-    <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">
-      Begin Exam
-    </button>
-  </div>
-`;
 }
 
 function startGlobalTimer(serverSeconds) {
   if (timerInterval) clearInterval(timerInterval);
+  secondsLeft = serverSeconds;
   timerStartEpoch = Date.now();
   lastProgressSent = Date.now();
   const timerEl = document.getElementById('timer');
   timerEl.style.display = 'block';
+  
   const tick = () => {
-    const elapsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
-    secondsLeft = serverSeconds - elapsed;
-    if (secondsLeft <= 0) {
+    const elapsedSinceStart = Math.floor((Date.now() - timerStartEpoch) / 1000);
+    const currentRemaining = serverSeconds - elapsedSinceStart;
+    
+    if (currentRemaining <= 0) {
       clearInterval(timerInterval);
+      secondsLeft = 0;
       autoSubmitted = true;
       finalSubmit();
       return;
     }
+    
+    secondsLeft = currentRemaining;
     const m = Math.floor(secondsLeft / 60);
     const s = secondsLeft % 60;
     timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
     if (secondsLeft <= 300) timerEl.classList.add('danger');
 
-    const now = Date.now();
-    if ((now - lastProgressSent) >= 600000) {
-      lastProgressSent = now;
+    if ((Date.now() - lastProgressSent) >= 600000) {
+      lastProgressSent = Date.now();
       sendProgressUpdate();
     }
   };
@@ -370,35 +347,30 @@ async function sendProgressUpdate() {
       secondsLeft,
       avgTime: calcAvgFromDurations()
     });
-  } catch (err) {
-    console.log("Progress update failed", err);
-  }
+  } catch {}
 }
 
 async function startExam() {
   setAppWidth('narrow');
   document.getElementById('metaRow').style.display = 'flex';
   document.getElementById('segTracker').style.display = 'flex';
-
   const q = document.getElementById('question');
   q.classList.remove('scrollable');
-  q.style.textAlign = 'center';
-  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing...</div>`;
+  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing Session...</div>`;
 
   try {
-    const [qRes, lRes] = await Promise.all([
-      post("FETCH_QUESTIONS"),
-      post("START_EXAM_LOG", {
-        discordId: window.dUser.id,
-        discordUsername: window.dUser.username,
-        robloxId: window.rUser,
-        username: window.rUsername
-      })
-    ]);
-    const data = await qRes.json();
-    const log = await lRes.json();
+    const logRes = await post("START_EXAM_LOG", {
+      discordId: window.dUser.id,
+      discordUsername: window.dUser.username,
+      robloxId: window.rUser,
+      username: window.rUsername
+    });
+    const log = await logRes.json();
+    
+    const qRes = await post("FETCH_QUESTIONS", { discordId: window.dUser.id });
+    const qData = await qRes.json();
 
-    mainQuestions = data.questions;
+    mainQuestions = qData.questions;
     answers = new Array(mainQuestions.length).fill("");
     lockedQuestions = new Array(mainQuestions.length).fill(false);
     questionDurations = new Array(mainQuestions.length).fill(0);
@@ -408,22 +380,15 @@ async function startExam() {
     startGlobalTimer(log.secondsLeft);
     loadQuestion();
   } catch {
-    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Failed to start.</div>`;
+    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Failed to initialize security session.</div>`;
   }
 }
 
 function loadQuestion() {
   questionStartTime = Date.now();
   const q = document.getElementById('question');
-
-  if (mainQuestions[current].length > 250) {
-    q.classList.add('scrollable');
-    q.style.textAlign = 'left';
-  } else {
-    q.classList.remove('scrollable');
-    q.style.textAlign = 'center';
-  }
-
+  q.classList.toggle('scrollable', mainQuestions[current].length > 250);
+  q.style.textAlign = mainQuestions[current].length > 250 ? 'left' : 'center';
   document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
   updateSegTracker();
   const ans = document.getElementById('answer');
@@ -444,7 +409,7 @@ function buildSegTracker(total) {
     b.id = `seg-${i}`;
     b.onclick = () => {
       if (!reviewMode) {
-        if (questionStartTime !== null && !lockedQuestions[current]) {
+        if (questionStartTime && !lockedQuestions[current]) {
           questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
         }
         current = i;
@@ -469,16 +434,13 @@ function updateSegTracker() {
 function saveAndNext() {
   const val = document.getElementById('answer').value.trim();
   if (!val) return;
-  if (questionStartTime !== null) {
+  if (questionStartTime) {
     questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
   }
   answers[current] = val;
   lockedQuestions[current] = true;
-  if (current < mainQuestions.length - 1) { current++; loadQuestion(); } else { showReview(); }
-}
-
-function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  if (current < mainQuestions.length - 1) { current++; loadQuestion(); } 
+  else { showReview(); }
 }
 
 function showReview() {
@@ -486,15 +448,12 @@ function showReview() {
   reviewMode = true;
   document.getElementById('input-area').style.display = 'none';
   updateSegTracker();
-  let html = `<div style="width:100%;"><div class="review-header">Review Submissions</div>`;
-  html += `<div class="review-list">`;
+  let html = `<div style="width:100%;"><div class="review-header">Review Submissions</div><div class="review-list">`;
   mainQuestions.forEach((q, i) => {
-    const hasAnswer = answers[i] && answers[i].trim();
-    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans${hasAnswer ? '' : ' missing'}">${hasAnswer ? escapeHtml(answers[i]) : 'No answer'}</div></div>`;
+    const hasAns = answers[i] && answers[i].trim();
+    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans ${hasAns ? '' : 'missing'}">${hasAns ? answers[i].replace(/&/g, '&amp;').replace(/</g, '&lt;') : 'No answer'}</div></div>`;
   });
-  html += `</div><div style="display:flex;gap:8px;">`;
-  if (secondsLeft > 0) html += `<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>`;
-  html += `<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>`;
+  html += `</div><div style="display:flex;gap:8px;">${secondsLeft > 0 ? '<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>' : ''}<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>`;
   const q = document.getElementById('question');
   q.classList.add('scrollable');
   q.innerHTML = html;
@@ -510,8 +469,8 @@ function resumeExam() {
 async function finalSubmit() {
   submitted = true;
   clearInterval(timerInterval);
-  document.getElementById('question').innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting assessment...</div>`;
-  const totalUsed = Math.floor((Date.now() - timerStartEpoch) / 1000);
+  const q = document.getElementById('question');
+  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Finalizing Assessment...</div>`;
   try {
     const res = await post("SUBMIT_EXAM", {
       discordId: window.dUser.id,
@@ -519,18 +478,20 @@ async function finalSubmit() {
       robloxId: window.rUser,
       username: window.rUsername,
       answers,
-      used: totalUsed,
       avgTime: calcAvgFromDurations(),
       autoSubmit: autoSubmitted
     });
+    const result = await res.json();
     if (res.ok) {
-      document.getElementById('question').innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">The examinee's responses have been recorded.</p></div>`;
+      q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">Your responses have been logged for review.</p></div>`;
       document.getElementById('input-area').style.display = 'none';
       document.getElementById('metaRow').style.display = 'none';
       document.getElementById('segTracker').style.display = 'none';
+    } else {
+      q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Submission Error: ${result.error || 'Unknown'}</div>`;
     }
   } catch {
-    document.getElementById('question').innerHTML = `<div>Error submitting.</div>`;
+    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Critical submission failure.</div>`;
   }
 }
 </script>
