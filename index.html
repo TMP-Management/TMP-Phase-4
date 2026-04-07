@@ -82,6 +82,8 @@
   .review-ans { font-size: 11.5px; color: #8aa4b0; line-height: 1.55; word-break: break-word; text-align: left; }
   .review-ans.missing { color: rgba(255,58,58,0.6); font-style: italic; }
   .cooldown-timer-box { background:rgba(255,58,58,0.05); border:1px solid rgba(255,58,58,0.2); padding:15px; border-radius:10px; margin-top: 10px; }
+  .instr-alert { background: rgba(255,105,180,0.06); border: 1px solid rgba(255,105,180,0.2); border-radius: 9px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #c8a0b0; line-height: 1.6; text-align: center; }
+  .instr-alert strong { color: #ff69b4; }
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -106,7 +108,7 @@
     </div>
     <div class="meta-row" id="metaRow">
       <div class="progress" id="progress">Awaiting Clearance</div>
-      <div class="timer" id="timer">⏱ 50:00</div>
+      <div class="timer" id="timer">⏱ 80:00</div>
     </div>
     <div class="seg-tracker" id="segTracker"></div>
     <div id="question" class="question-card">
@@ -129,13 +131,14 @@
 const WORKER_URL = "https://server.yyourmom96.workers.dev";
 const D_CLIENT = '1487244125488152589';
 const REDIRECT = window.location.origin + window.location.pathname;
-let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 3000;
+let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 4800;
 let examStarted = false, mainQuestions = [], reviewMode = false;
 let timerStartEpoch = null, submitted = false;
 let lastProgressSent = null;
 let questionStartTime = null;
 let questionDurations = [];
 let autoSubmitted = false;
+let sessionToken = null;
 window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
 
 function setAppWidth(mode) {
@@ -156,17 +159,21 @@ function calcAvgFromDurations() {
 }
 
 async function post(type, extra = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (sessionToken) headers["X-Exam-Token"] = sessionToken;
   return fetch(WORKER_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ type, ...extra })
   });
 }
 
 function postKeepalive(type, extra = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (sessionToken) headers["X-Exam-Token"] = sessionToken;
   fetch(WORKER_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ type, ...extra }),
     keepalive: true
   }).catch(() => {});
@@ -258,8 +265,8 @@ async function showInstructions() {
   q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>`;
   try {
     const [cr, rr] = await Promise.all([
-      post("CHECK_COOLDOWN", { discordId: window.dUser.id }),
-      post("VERIFY_RANK", { discordId: window.dUser.id })
+      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
+      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
     ]);
     const cooldown = await cr.json();
     const rankData = await rr.json();
@@ -274,6 +281,8 @@ async function showInstructions() {
       q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>`;
       return;
     }
+
+    sessionToken = rankData.sessionToken || null;
     window.rUser = rankData.robloxId;
     window.rUsername = rankData.robloxUsername;
     document.getElementById('notice').style.display = 'none';
@@ -281,18 +290,30 @@ async function showInstructions() {
     q.innerHTML = `
       <div class="instr-wrap">
         <div class="instr-title">Phase 4 — Written Exam</div>
+        <div class="instr-alert">You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.</div>
         <div class="info-grid">
-          <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">50 min</div></div>
+          <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">80 min</div></div>
           <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
           <div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>
           <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
         </div>
         <div class="instr-section">
           <div class="instr-section-title">Exam Details</div>
-          <div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">50 minutes</span> to complete the assessment.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>Navigate using blocks. Answers lock upon <span class="rule-bold">Submission</span>.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>AI use and plagiarism will result in an immediate <span class="rule-bold">permanent blacklist</span>.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">80 minutes</span> to complete all questions.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>Use the blocks below the question counter to navigate freely — you can start with Q5 and jump to Q12 at any time.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>You can move between questions freely, but once you <span class="rule-bold">submit</span> an answer it cannot be changed.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-bold">1-day cooldown</span> between submissions.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>This is an <span class="rule-bold">open book</span> exam — you may use any documents at your disposal.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>. Do not close or refresh the page.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>A <span class="rule-bold">Bloxlink</span> check will be performed — ensure you are verified beforehand. Verification may fail if Bloxlink is down or has reached its daily API limit.</span></div>
         </div>
+        <div class="instr-section">
+          <div class="instr-section-title">Exam Rules</div>
+          <div class="rule-item"><div class="rule-dot"></div><span>The usage of <span class="rule-bold">AI is prohibited</span>.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed.</span> Your answers must be in your own words. Copying from documents or other examinees will result in an immediate fail.</span></div>
+          <div class="rule-item"><div class="rule-dot"></div><span>You are not permitted to <span class="rule-bold">share, screenshot, or discuss</span> specific exam questions with anyone.</span></div>
+        </div>
+        <div style="font-size:11px;color:#556a74;text-align:center;margin-bottom:14px;">If you experience technical difficulties, consult a member of TMP High Command.</div>
         <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">Begin Exam</button>
       </div>`;
   } catch {
