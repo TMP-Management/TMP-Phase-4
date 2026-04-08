@@ -113,408 +113,445 @@
     <div class="seg-tracker" id="segTracker"></div>
     <div id="question" class="question-card">
       <div style="max-width: 280px; width: 100%;">
-         <button class="action-btn" onclick="loginDiscord()">Link Discord Account</button>
+         <button class="action-btn" id="login-btn">Link Discord Account</button>
       </div>
     </div>
     <div id="input-area">
       <textarea id="answer" placeholder="Type your answer here..."></textarea>
       <div class="locked-notice" id="locked-notice">⚑ &nbsp;Answer locked — cannot be changed</div>
       <div style="display:flex;gap:8px;">
-        <button class="action-btn" onclick="showReview()" style="border-color:rgba(0,220,255,0.4);color:#00dcff;flex:1;">Review</button>
-        <button class="action-btn" id="submit-btn" onclick="saveAndNext()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;flex:2;">Submit & Next</button>
+        <button class="action-btn" id="review-btn" style="border-color:rgba(0,220,255,0.4);color:#00dcff;flex:1;">Review</button>
+        <button class="action-btn" id="submit-btn" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;flex:2;">Submit & Next</button>
       </div>
     </div>
     <div class="credit-text">CREATED BY FAEVYNL</div>
   </div>
 </div>
 <script>
-const WORKER_URL = "https://server.yyourmom96.workers.dev";
-const D_CLIENT = '1487244125488152589';
-const REDIRECT = window.location.origin + window.location.pathname;
-let current = 0, answers = [], lockedQuestions = [], timerInterval = null, secondsLeft = 4800;
-let examStarted = false, mainQuestions = [], reviewMode = false;
-let timerStartEpoch = null, submitted = false;
-let lastProgressSent = null;
-let questionStartTime = null;
-let questionDurations = [];
-let autoSubmitted = false;
-let sessionToken = null;
-window.dUser = null; window.rUser = null; window.rUsername = "Unknown";
+(function() {
+  'use strict';
 
-function setAppWidth(mode) {
-  const app = document.getElementById('app');
-  if (mode === 'wide') app.classList.add('expanded');
-  else app.classList.remove('expanded');
-}
+  const WORKER_URL = "https://server.yyourmom96.workers.dev";
+  const D_CLIENT = '1487244125488152589';
+  const REDIRECT = window.location.origin + window.location.pathname;
+  const MAX_ANSWER_LENGTH = 4000;
 
-function getAnsweredCount() {
-  return answers.filter(a => a && a.trim()).length;
-}
+  let current = 0;
+  let answers = [];
+  let lockedQuestions = [];
+  let timerInterval = null;
+  let secondsLeft = 4800;
+  let examStarted = false;
+  let mainQuestions = [];
+  let reviewMode = false;
+  let timerStartEpoch = null;
+  let submitted = false;
+  let lastProgressSent = null;
+  let questionStartTime = null;
+  let questionDurations = [];
+  let autoSubmitted = false;
+  let sessionToken = null;
+  let dUser = null;
+  let rUser = null;
+  let rUsername = "Unknown";
+  let abandonedSent = false;
 
-function calcAvgFromDurations() {
-  const recorded = questionDurations.filter(d => d > 0);
-  if (!recorded.length) return "0s";
-  const avg = Math.round(recorded.reduce((a, b) => a + b, 0) / recorded.length);
-  return avg < 60 ? `${avg}s` : `${Math.floor(avg / 60)}m ${avg % 60}s`;
-}
+  function setAppWidth(mode) {
+    const app = document.getElementById('app');
+    if (mode === 'wide') app.classList.add('expanded');
+    else app.classList.remove('expanded');
+  }
 
-async function post(type, extra = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (sessionToken) headers["X-Exam-Token"] = sessionToken;
-  return fetch(WORKER_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ type, ...extra })
-  });
-}
+  function getAnsweredCount() {
+    return answers.filter(function(a) { return a && a.trim(); }).length;
+  }
 
-function postKeepalive(type, extra = {}) {
-  const headers = { "Content-Type": "application/json" };
-  if (sessionToken) headers["X-Exam-Token"] = sessionToken;
-  fetch(WORKER_URL, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ type, ...extra }),
-    keepalive: true
-  }).catch(() => {});
-}
+  function calcAvgFromDurations() {
+    const recorded = questionDurations.filter(function(d) { return d > 0; });
+    if (!recorded.length) return "0s";
+    const avg = Math.round(recorded.reduce(function(a, b) { return a + b; }, 0) / recorded.length);
+    return avg < 60 ? avg + "s" : Math.floor(avg / 60) + "m " + (avg % 60) + "s";
+  }
 
-async function logSecurityEvent(type) {
-  if (!examStarted || submitted) return;
-  try {
-    await post(type, {
-      discordId: window.dUser?.id,
-      discordUsername: window.dUser?.username,
-      robloxId: window.rUser,
-      username: window.rUsername
+  function post(type, extra) {
+    extra = extra || {};
+    const headers = { "Content-Type": "application/json" };
+    if (sessionToken) headers["X-Exam-Token"] = sessionToken;
+    return fetch(WORKER_URL, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(Object.assign({ type: type }, extra))
     });
-  } catch(err) {}
-}
-
-let abandonedSent = false;
-function sendAbandonedEvent() {
-  if (!examStarted || submitted || abandonedSent) return;
-  abandonedSent = true;
-  postKeepalive("EXAM_ABANDONED", {
-    discordId: window.dUser?.id,
-    discordUsername: window.dUser?.username,
-    robloxId: window.rUser,
-    username: window.rUsername,
-    answeredCount: getAnsweredCount(),
-    totalCount: mainQuestions.length,
-    secondsLeft: secondsLeft,
-    avgTime: calcAvgFromDurations()
-  });
-}
-
-window.addEventListener('pagehide', sendAbandonedEvent);
-window.addEventListener('beforeunload', sendAbandonedEvent);
-
-window.addEventListener('blur', () => {
-  if (!examStarted || submitted) return;
-  document.getElementById('main-content').classList.add('blur-shield');
-  document.getElementById('overlay').classList.add('active');
-  logSecurityEvent("BLUR_EVENT");
-});
-
-window.addEventListener('focus', () => {
-  if (!examStarted || submitted) return;
-  document.getElementById('main-content').classList.remove('blur-shield');
-  document.getElementById('overlay').classList.remove('active');
-});
-
-window.addEventListener('keyup', (e) => {
-  if (e.key === 'PrintScreen') {
-    if (examStarted && !submitted) {
-      postKeepalive("SCREENSHOT_EVENT", {
-        discordId: window.dUser?.id,
-        discordUsername: window.dUser?.username,
-        robloxId: window.rUser,
-        username: window.rUsername
-      });
-    }
-    document.body.innerHTML = `<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:'Rajdhani';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>`;
   }
-});
 
-document.addEventListener('DOMContentLoaded', () => {
-  const answerEl = document.getElementById('answer');
-  answerEl.addEventListener('paste', e => e.preventDefault());
-  answerEl.addEventListener('copy', e => e.preventDefault());
-  answerEl.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); }
-  });
-
-  const hash = new URLSearchParams(window.location.hash.slice(1));
-  const token = hash.get('access_token');
-  if (token) {
-    history.replaceState(null, document.title, window.location.pathname + window.location.search);
-    fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(user => { window.dUser = user; showInstructions(); });
+  function postKeepalive(type, extra) {
+    extra = extra || {};
+    const headers = { "Content-Type": "application/json" };
+    if (sessionToken) headers["X-Exam-Token"] = sessionToken;
+    fetch(WORKER_URL, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(Object.assign({ type: type }, extra)),
+      keepalive: true
+    }).catch(function() {});
   }
-});
 
-function loginDiscord() {
-  window.location.href = `https://discord.com/oauth2/authorize?client_id=${D_CLIENT}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=identify`;
-}
-
-async function showInstructions() {
-  setAppWidth('wide');
-  const q = document.getElementById('question');
-  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>`;
-  try {
-    const [cr, rr] = await Promise.all([
-      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: window.dUser.id }) }),
-      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: window.dUser.id }) })
-    ]);
-    const cooldown = await cr.json();
-    const rankData = await rr.json();
-
-    if (cooldown.onCooldown) {
-      setAppWidth('narrow');
-      q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div class="cooldown-timer-box"><div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Wait Time Remaining</div><div style="font-family:'Rajdhani'; font-size:22px; color:#ff3a3a; font-weight:700;">${cooldown.timeRemaining}</div></div></div>`;
-      return;
-    }
-    if (!rankData.eligible) {
-      setAppWidth('narrow');
-      q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>`;
-      return;
-    }
-
-    sessionToken = rankData.sessionToken || null;
-    window.rUser = rankData.robloxId;
-    window.rUsername = rankData.robloxUsername;
-    document.getElementById('notice').style.display = 'none';
-    q.classList.add('scrollable');
-    q.innerHTML = `
-      <div class="instr-wrap">
-        <div class="instr-title">Phase 4 — Written Exam</div>
-        <div class="instr-alert">You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.</div>
-        <div class="info-grid">
-          <div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">80 min</div></div>
-          <div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>
-          <div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>
-          <div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>
-        </div>
-        <div class="instr-section">
-          <div class="instr-section-title">Exam Details</div>
-          <div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">80 minutes</span> to complete all questions.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>Use the blocks below the question counter to navigate freely — you can start with Q5 and jump to Q12 at any time.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>You can move between questions freely, but once you <span class="rule-bold">submit</span> an answer it cannot be changed.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-bold">1-day cooldown</span> between submissions.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>This is an <span class="rule-bold">open book</span> exam — you may use any documents at your disposal.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>. Do not close or refresh the page.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>A <span class="rule-bold">Bloxlink</span> check will be performed — ensure you are verified beforehand. Verification may fail if Bloxlink is down or has reached its daily API limit.</span></div>
-        </div>
-        <div class="instr-section">
-          <div class="instr-section-title">Exam Rules</div>
-          <div class="rule-item"><div class="rule-dot"></div><span>The usage of <span class="rule-bold">AI is prohibited</span>.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed.</span> Your answers must be in your own words. Copying from documents or other examinees will result in an immediate fail.</span></div>
-          <div class="rule-item"><div class="rule-dot"></div><span>You are not permitted to <span class="rule-bold">share, screenshot, or discuss</span> specific exam questions with anyone.</span></div>
-        </div>
-        <div style="font-size:11px;color:#556a74;text-align:center;margin-bottom:14px;">If you experience technical difficulties, consult a member of TMP High Command.</div>
-        <button class="action-btn" onclick="startExam()" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">Begin Exam</button>
-      </div>`;
-  } catch {
-    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>`;
+  function logSecurityEvent(type) {
+    if (!examStarted || submitted) return;
+    post(type, {
+      discordId: dUser && dUser.id,
+      discordUsername: dUser && dUser.username,
+      robloxId: rUser,
+      username: rUsername
+    }).catch(function() {});
   }
-}
 
-function startGlobalTimer(serverSeconds) {
-  if (timerInterval) clearInterval(timerInterval);
-  secondsLeft = serverSeconds;
-  timerStartEpoch = Date.now();
-  lastProgressSent = Date.now();
-  const timerEl = document.getElementById('timer');
-  timerEl.style.display = 'block';
-  
-  const tick = () => {
-    const elapsedSinceStart = Math.floor((Date.now() - timerStartEpoch) / 1000);
-    const currentRemaining = serverSeconds - elapsedSinceStart;
-    
-    if (currentRemaining <= 0) {
-      clearInterval(timerInterval);
-      secondsLeft = 0;
-      autoSubmitted = true;
-      finalSubmit();
-      return;
-    }
-    
-    secondsLeft = currentRemaining;
-    const m = Math.floor(secondsLeft / 60);
-    const s = secondsLeft % 60;
-    timerEl.innerText = `⏱ ${m}:${s.toString().padStart(2, '0')}`;
-    if (secondsLeft <= 300) timerEl.classList.add('danger');
-
-    if ((Date.now() - lastProgressSent) >= 600000) {
-      lastProgressSent = Date.now();
-      sendProgressUpdate();
-    }
-  };
-  tick();
-  timerInterval = setInterval(tick, 1000);
-}
-
-async function sendProgressUpdate() {
-  try {
-    await post("PROGRESS_UPDATE", {
-      discordId: window.dUser.id,
-      discordUsername: window.dUser.username,
-      robloxId: window.rUser,
-      username: window.rUsername,
+  function sendAbandonedEvent() {
+    if (!examStarted || submitted || abandonedSent) return;
+    abandonedSent = true;
+    postKeepalive("EXAM_ABANDONED", {
+      discordId: dUser && dUser.id,
+      discordUsername: dUser && dUser.username,
+      robloxId: rUser,
+      username: rUsername,
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
-      secondsLeft,
+      secondsLeft: secondsLeft,
       avgTime: calcAvgFromDurations()
     });
-  } catch {}
-}
-
-async function startExam() {
-  setAppWidth('narrow');
-  document.getElementById('metaRow').style.display = 'flex';
-  document.getElementById('segTracker').style.display = 'flex';
-  const q = document.getElementById('question');
-  q.classList.remove('scrollable');
-  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing Session...</div>`;
-
-  try {
-    const logRes = await post("START_EXAM_LOG", {
-      discordId: window.dUser.id,
-      discordUsername: window.dUser.username,
-      robloxId: window.rUser,
-      username: window.rUsername
-    });
-    const log = await logRes.json();
-    
-    const qRes = await post("FETCH_QUESTIONS", { discordId: window.dUser.id });
-    const qData = await qRes.json();
-
-    mainQuestions = qData.questions;
-    answers = new Array(mainQuestions.length).fill("");
-    lockedQuestions = new Array(mainQuestions.length).fill(false);
-    questionDurations = new Array(mainQuestions.length).fill(0);
-    examStarted = true;
-    buildSegTracker(mainQuestions.length);
-    document.getElementById('input-area').style.display = 'flex';
-    startGlobalTimer(log.secondsLeft);
-    loadQuestion();
-  } catch {
-    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Failed to initialize security session.</div>`;
   }
-}
 
-function loadQuestion() {
-  questionStartTime = Date.now();
-  const q = document.getElementById('question');
-  q.classList.toggle('scrollable', mainQuestions[current].length > 250);
-  q.style.textAlign = mainQuestions[current].length > 250 ? 'left' : 'center';
-  document.getElementById('progress').innerText = `Question ${current + 1} / ${mainQuestions.length}`;
-  updateSegTracker();
-  const ans = document.getElementById('answer');
-  const lk = lockedQuestions[current];
-  ans.value = answers[current];
-  ans.disabled = lk;
-  document.getElementById('submit-btn').disabled = lk;
-  document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
-  q.innerText = mainQuestions[current];
-}
+  window.addEventListener('pagehide', sendAbandonedEvent);
+  window.addEventListener('beforeunload', sendAbandonedEvent);
 
-function buildSegTracker(total) {
-  const tracker = document.getElementById('segTracker');
-  tracker.innerHTML = '';
-  for (let i = 0; i < total; i++) {
-    const b = document.createElement('div');
-    b.className = 'seg-block clickable';
-    b.id = `seg-${i}`;
-    b.onclick = () => {
-      if (!reviewMode) {
-        if (questionStartTime && !lockedQuestions[current]) {
-          questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
-        }
-        current = i;
-        loadQuestion();
+  window.addEventListener('blur', function() {
+    if (!examStarted || submitted) return;
+    document.getElementById('main-content').classList.add('blur-shield');
+    document.getElementById('overlay').classList.add('active');
+    logSecurityEvent("BLUR_EVENT");
+  });
+
+  window.addEventListener('focus', function() {
+    if (!examStarted || submitted) return;
+    document.getElementById('main-content').classList.remove('blur-shield');
+    document.getElementById('overlay').classList.remove('active');
+  });
+
+  window.addEventListener('keyup', function(e) {
+    if (e.key === 'PrintScreen') {
+      if (examStarted && !submitted) {
+        postKeepalive("SCREENSHOT_EVENT", {
+          discordId: dUser && dUser.id,
+          discordUsername: dUser && dUser.username,
+          robloxId: rUser,
+          username: rUsername
+        });
       }
-    };
-    tracker.appendChild(b);
-  }
-}
-
-function updateSegTracker() {
-  mainQuestions.forEach((_, i) => {
-    const b = document.getElementById(`seg-${i}`);
-    if (!b) return;
-    b.className = 'seg-block clickable';
-    if (lockedQuestions[i]) b.classList.add('locked');
-    else if (answers[i].trim()) b.classList.add('filled');
-    if (i === current) b.classList.add('current');
+      document.body.innerHTML = '<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:\'Rajdhani\';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>';
+    }
   });
-}
 
-function saveAndNext() {
-  const val = document.getElementById('answer').value.trim();
-  if (!val) return;
-  if (questionStartTime) {
-    questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
+  function loginDiscord() {
+    window.location.href = 'https://discord.com/oauth2/authorize?client_id=' + D_CLIENT + '&redirect_uri=' + encodeURIComponent(REDIRECT) + '&response_type=token&scope=identify';
   }
-  answers[current] = val;
-  lockedQuestions[current] = true;
-  if (current < mainQuestions.length - 1) { current++; loadQuestion(); } 
-  else { showReview(); }
-}
 
-function showReview() {
-  setAppWidth('wide');
-  reviewMode = true;
-  document.getElementById('input-area').style.display = 'none';
-  updateSegTracker();
-  let html = `<div style="width:100%;"><div class="review-header">Review Submissions</div><div class="review-list">`;
-  mainQuestions.forEach((q, i) => {
-    const hasAns = answers[i] && answers[i].trim();
-    html += `<div class="review-row"><div class="review-qnum">Q${i+1}</div><div class="review-ans ${hasAns ? '' : 'missing'}">${hasAns ? answers[i].replace(/&/g, '&amp;').replace(/</g, '&lt;') : 'No answer'}</div></div>`;
-  });
-  html += `</div><div style="display:flex;gap:8px;">${secondsLeft > 0 ? '<button class="action-btn" onclick="resumeExam()" style="flex:1;">Back</button>' : ''}<button class="action-btn" onclick="finalSubmit()" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>`;
-  const q = document.getElementById('question');
-  q.classList.add('scrollable');
-  q.innerHTML = html;
-}
+  function showInstructions() {
+    setAppWidth('wide');
+    const q = document.getElementById('question');
+    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>';
+    Promise.all([
+      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: dUser.id }) }),
+      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: dUser.id }) })
+    ]).then(function(results) {
+      return Promise.all([results[0].json(), results[1].json()]);
+    }).then(function(data) {
+      const cooldown = data[0];
+      const rankData = data[1];
 
-function resumeExam() {
-  setAppWidth('narrow');
-  reviewMode = false;
-  document.getElementById('input-area').style.display = 'flex';
-  loadQuestion();
-}
+      if (cooldown.onCooldown) {
+        setAppWidth('narrow');
+        q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div class="cooldown-timer-box"><div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Wait Time Remaining</div><div style="font-family:\'Rajdhani\'; font-size:22px; color:#ff3a3a; font-weight:700;">' + cooldown.timeRemaining + '</div></div></div>';
+        return;
+      }
+      if (!rankData.eligible) {
+        setAppWidth('narrow');
+        q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>';
+        return;
+      }
 
-async function finalSubmit() {
-  submitted = true;
-  clearInterval(timerInterval);
-  const q = document.getElementById('question');
-  q.innerHTML = `<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Finalizing Assessment...</div>`;
-  try {
-    const res = await post("SUBMIT_EXAM", {
-      discordId: window.dUser.id,
-      discordUsername: window.dUser.username,
-      robloxId: window.rUser,
-      username: window.rUsername,
-      answers,
+      sessionToken = rankData.sessionToken || null;
+      rUser = rankData.robloxId;
+      rUsername = rankData.robloxUsername;
+      document.getElementById('notice').style.display = 'none';
+      q.classList.add('scrollable');
+      q.innerHTML = '<div class="instr-wrap">' +
+        '<div class="instr-title">Phase 4 — Written Exam</div>' +
+        '<div class="instr-alert">You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.</div>' +
+        '<div class="info-grid">' +
+          '<div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">80 min</div></div>' +
+          '<div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>' +
+          '<div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>' +
+          '<div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>' +
+        '</div>' +
+        '<div class="instr-section">' +
+          '<div class="instr-section-title">Exam Details</div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">80 minutes</span> to complete all questions.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>Use the blocks below the question counter to navigate freely — you can start with Q5 and jump to Q12 at any time.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>You can move between questions freely, but once you <span class="rule-bold">submit</span> an answer it cannot be changed.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-bold">1-day cooldown</span> between submissions.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>This is an <span class="rule-bold">open book</span> exam — you may use any documents at your disposal.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>. Do not close or refresh the page.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>A <span class="rule-bold">Bloxlink</span> check will be performed — ensure you are verified beforehand. Verification may fail if Bloxlink is down or has reached its daily API limit.</span></div>' +
+        '</div>' +
+        '<div class="instr-section">' +
+          '<div class="instr-section-title">Exam Rules</div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>The usage of <span class="rule-bold">AI is prohibited</span>.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed.</span> Your answers must be in your own words. Copying from documents or other examinees will result in an immediate fail.</span></div>' +
+          '<div class="rule-item"><div class="rule-dot"></div><span>You are not permitted to <span class="rule-bold">share, screenshot, or discuss</span> specific exam questions with anyone.</span></div>' +
+        '</div>' +
+        '<div style="font-size:11px;color:#556a74;text-align:center;margin-bottom:14px;">If you experience technical difficulties, consult a member of TMP High Command.</div>' +
+        '<button class="action-btn" id="begin-btn" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">Begin Exam</button>' +
+      '</div>';
+      document.getElementById('begin-btn').addEventListener('click', startExam);
+    }).catch(function() {
+      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>';
+    });
+  }
+
+  function startGlobalTimer(serverSeconds) {
+    if (timerInterval) clearInterval(timerInterval);
+    secondsLeft = serverSeconds;
+    timerStartEpoch = Date.now();
+    lastProgressSent = Date.now();
+    const timerEl = document.getElementById('timer');
+    timerEl.style.display = 'block';
+
+    function tick() {
+      const elapsedSinceStart = Math.floor((Date.now() - timerStartEpoch) / 1000);
+      const currentRemaining = serverSeconds - elapsedSinceStart;
+
+      if (currentRemaining <= 0) {
+        clearInterval(timerInterval);
+        secondsLeft = 0;
+        autoSubmitted = true;
+        finalSubmit();
+        return;
+      }
+
+      secondsLeft = currentRemaining;
+      const m = Math.floor(secondsLeft / 60);
+      const s = secondsLeft % 60;
+      timerEl.innerText = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+      if (secondsLeft <= 300) timerEl.classList.add('danger');
+
+      if ((Date.now() - lastProgressSent) >= 600000) {
+        lastProgressSent = Date.now();
+        sendProgressUpdate();
+      }
+    }
+
+    tick();
+    timerInterval = setInterval(tick, 1000);
+  }
+
+  function sendProgressUpdate() {
+    post("PROGRESS_UPDATE", {
+      discordId: dUser && dUser.id,
+      discordUsername: dUser && dUser.username,
+      robloxId: rUser,
+      username: rUsername,
+      answeredCount: getAnsweredCount(),
+      totalCount: mainQuestions.length,
+      secondsLeft: secondsLeft,
+      avgTime: calcAvgFromDurations()
+    }).catch(function() {});
+  }
+
+  function startExam() {
+    setAppWidth('narrow');
+    document.getElementById('metaRow').style.display = 'flex';
+    document.getElementById('segTracker').style.display = 'flex';
+    const q = document.getElementById('question');
+    q.classList.remove('scrollable');
+    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing Session...</div>';
+
+    post("START_EXAM_LOG", {
+      discordId: dUser && dUser.id,
+      discordUsername: dUser && dUser.username,
+      robloxId: rUser,
+      username: rUsername
+    }).then(function(res) {
+      return res.json();
+    }).then(function(log) {
+      return post("FETCH_QUESTIONS", { discordId: dUser && dUser.id }).then(function(res) {
+        return res.json();
+      }).then(function(qData) {
+        mainQuestions = qData.questions;
+        answers = new Array(mainQuestions.length).fill("");
+        lockedQuestions = new Array(mainQuestions.length).fill(false);
+        questionDurations = new Array(mainQuestions.length).fill(0);
+        examStarted = true;
+        buildSegTracker(mainQuestions.length);
+        document.getElementById('input-area').style.display = 'flex';
+        startGlobalTimer(log.secondsLeft);
+        loadQuestion();
+      });
+    }).catch(function() {
+      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Failed to initialize security session.</div>';
+    });
+  }
+
+  function loadQuestion() {
+    questionStartTime = Date.now();
+    const q = document.getElementById('question');
+    q.classList.toggle('scrollable', mainQuestions[current].length > 250);
+    q.style.textAlign = mainQuestions[current].length > 250 ? 'left' : 'center';
+    document.getElementById('progress').innerText = 'Question ' + (current + 1) + ' / ' + mainQuestions.length;
+    updateSegTracker();
+    const ans = document.getElementById('answer');
+    const lk = lockedQuestions[current];
+    ans.value = answers[current];
+    ans.disabled = lk;
+    document.getElementById('submit-btn').disabled = lk;
+    document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
+    q.innerText = mainQuestions[current];
+  }
+
+  function buildSegTracker(total) {
+    const tracker = document.getElementById('segTracker');
+    tracker.innerHTML = '';
+    for (let i = 0; i < total; i++) {
+      (function(idx) {
+        const b = document.createElement('div');
+        b.className = 'seg-block clickable';
+        b.id = 'seg-' + idx;
+        b.addEventListener('click', function() {
+          if (!reviewMode) {
+            if (questionStartTime && !lockedQuestions[current]) {
+              questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
+            }
+            current = idx;
+            loadQuestion();
+          }
+        });
+        tracker.appendChild(b);
+      })(i);
+    }
+  }
+
+  function updateSegTracker() {
+    mainQuestions.forEach(function(_, i) {
+      const b = document.getElementById('seg-' + i);
+      if (!b) return;
+      b.className = 'seg-block clickable';
+      if (lockedQuestions[i]) b.classList.add('locked');
+      else if (answers[i] && answers[i].trim()) b.classList.add('filled');
+      if (i === current) b.classList.add('current');
+    });
+  }
+
+  function saveAndNext() {
+    const rawVal = document.getElementById('answer').value;
+    const val = rawVal.slice(0, MAX_ANSWER_LENGTH).trim();
+    if (!val) return;
+    if (questionStartTime) {
+      questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
+    }
+    answers[current] = val;
+    lockedQuestions[current] = true;
+    if (current < mainQuestions.length - 1) {
+      current++;
+      loadQuestion();
+    } else {
+      showReview();
+    }
+  }
+
+  function showReview() {
+    setAppWidth('wide');
+    reviewMode = true;
+    document.getElementById('input-area').style.display = 'none';
+    updateSegTracker();
+    let html = '<div style="width:100%;"><div class="review-header">Review Submissions</div><div class="review-list">';
+    mainQuestions.forEach(function(q, i) {
+      const hasAns = answers[i] && answers[i].trim();
+      html += '<div class="review-row"><div class="review-qnum">Q' + (i + 1) + '</div><div class="review-ans ' + (hasAns ? '' : 'missing') + '">' + (hasAns ? answers[i].replace(/&/g, '&amp;').replace(/</g, '&lt;') : 'No answer') + '</div></div>';
+    });
+    html += '</div><div style="display:flex;gap:8px;">' + (secondsLeft > 0 ? '<button class="action-btn" id="back-btn" style="flex:1;">Back</button>' : '') + '<button class="action-btn" id="final-btn" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>';
+    const q = document.getElementById('question');
+    q.classList.add('scrollable');
+    q.innerHTML = html;
+    if (secondsLeft > 0) {
+      document.getElementById('back-btn').addEventListener('click', resumeExam);
+    }
+    document.getElementById('final-btn').addEventListener('click', finalSubmit);
+  }
+
+  function resumeExam() {
+    setAppWidth('narrow');
+    reviewMode = false;
+    document.getElementById('input-area').style.display = 'flex';
+    loadQuestion();
+  }
+
+  function finalSubmit() {
+    if (submitted) return;
+    submitted = true;
+    clearInterval(timerInterval);
+    const q = document.getElementById('question');
+    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Finalizing Assessment...</div>';
+    post("SUBMIT_EXAM", {
+      discordId: dUser && dUser.id,
+      discordUsername: dUser && dUser.username,
+      robloxId: rUser,
+      username: rUsername,
+      answers: answers.map(function(a) { return (a || "").slice(0, MAX_ANSWER_LENGTH); }),
       avgTime: calcAvgFromDurations(),
       autoSubmit: autoSubmitted
+    }).then(function(res) {
+      return res.json().then(function(result) {
+        if (res.ok) {
+          q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">Your responses have been logged for review.</p></div>';
+          document.getElementById('input-area').style.display = 'none';
+          document.getElementById('metaRow').style.display = 'none';
+          document.getElementById('segTracker').style.display = 'none';
+        } else {
+          submitted = false;
+          q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Submission Error: ' + (result.error || 'Unknown') + '</div>';
+        }
+      });
+    }).catch(function() {
+      submitted = false;
+      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Critical submission failure.</div>';
     });
-    const result = await res.json();
-    if (res.ok) {
-      q.innerHTML = `<div style="text-align:center;"><div style="font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">Your responses have been logged for review.</p></div>`;
-      document.getElementById('input-area').style.display = 'none';
-      document.getElementById('metaRow').style.display = 'none';
-      document.getElementById('segTracker').style.display = 'none';
-    } else {
-      q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Submission Error: ${result.error || 'Unknown'}</div>`;
-    }
-  } catch {
-    q.innerHTML = `<div style="color:#ff3a3a;font-size:12px;">Critical submission failure.</div>`;
   }
-}
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('login-btn').addEventListener('click', loginDiscord);
+
+    document.getElementById('submit-btn').addEventListener('click', saveAndNext);
+    document.getElementById('review-btn').addEventListener('click', function() {
+      if (examStarted && !submitted) showReview();
+    });
+
+    const answerEl = document.getElementById('answer');
+    answerEl.addEventListener('paste', function(e) { e.preventDefault(); });
+    answerEl.addEventListener('copy', function(e) { e.preventDefault(); });
+    answerEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); }
+    });
+
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const token = hash.get('access_token');
+    if (token) {
+      history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function(r) { return r.json(); })
+        .then(function(user) { dUser = user; showInstructions(); });
+    }
+  });
+
+})();
 </script>
 </body>
 </html>
