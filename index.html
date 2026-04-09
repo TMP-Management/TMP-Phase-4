@@ -12,12 +12,11 @@
   body::before { content: ''; position: fixed; inset: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at 20% 50%, rgba(255,105,180,0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(0,220,255,0.12) 0%, transparent 50%), radial-gradient(ellipse at 60% 80%, rgba(120,0,255,0.07) 0%, transparent 50%); animation: bgShift 12s ease-in-out infinite alternate; z-index: 0; pointer-events: none; }
   @keyframes bgShift { 0% { transform: translate(0%,0%) rotate(0deg); } 100% { transform: translate(2%,5%) rotate(4deg); } }
   .content-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; transition: filter 0.3s ease, transform 0.3s ease; z-index: 1; }
-  .blur-shield { filter: blur(45px) grayscale(100%); transform: scale(0.92); pointer-events: none; }
   .blur-overlay { display: none; position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0.85); backdrop-filter: blur(25px); justify-content: center; align-items: center; text-align: center; border: 2px solid rgba(255,105,180,0.4); }
   .blur-overlay.active { display: flex; }
-  .security-notice { font-family: 'Rajdhani', sans-serif; }
-  .security-notice h1 { color: #ff3a3a; font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,58,58,0.5); }
-  .security-notice p { color: #00dcff; font-size: 14px; letter-spacing: 1px; }
+  .focus-notice { font-family: 'Rajdhani', sans-serif; }
+  .focus-notice h1 { color: #ff3a3a; font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 10px; text-shadow: 0 0 15px rgba(255,58,58,0.5); }
+  .focus-notice p { color: #00dcff; font-size: 14px; letter-spacing: 1px; }
   #app { position: relative; width: 100%; max-width: 480px; height: auto; max-height: calc(100vh - 48px); display: flex; flex-direction: column; gap: 10px; transition: max-width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
   #app.expanded { max-width: 620px; }
   .header { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: linear-gradient(135deg,#0d0d0d,#111); border: 1px solid rgba(255,105,180,0.3); border-radius: 14px; position: relative; overflow: hidden; flex-shrink: 0; }
@@ -67,14 +66,8 @@
   .rule-item { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; color: #8aa4b0; line-height: 1.65; }
   .rule-item:last-child { border-bottom: none; }
   .rule-dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,105,180,0.5); margin-top: 8px; flex-shrink: 0; }
-  .rule-hl { color: #00dcff; }
   .rule-bold { color: #c8d8e0; font-weight: 500; }
   .review-header { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; color: #fff; text-align: center; margin-bottom: 4px; letter-spacing: 1px; }
-  .review-subhead { font-size: 11.5px; color: rgba(255,255,255,0.3); text-align: center; margin-bottom: 14px; }
-  .review-status { display: flex; justify-content: space-between; margin-bottom: 12px; font-size: 11.5px; }
-  .review-stat { display: flex; align-items: center; gap: 6px; color: #8aa4b0; }
-  .review-dot-a { width: 7px; height: 7px; border-radius: 50%; background: #00dcff; }
-  .review-dot-m { width: 7px; height: 7px; border-radius: 50%; background: #ff3a3a; }
   .review-list { width: 100%; margin-bottom: 14px; }
   .review-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
   .review-row:last-child { border-bottom: none; }
@@ -88,9 +81,9 @@
 </head>
 <body oncontextmenu="return false;">
 <div id="overlay" class="blur-overlay">
-  <div class="security-notice">
-    <h1>SECURITY PROTOCOL ACTIVE</h1>
-    <p>VIEWING RESTRICTED · TAB FOCUS LOST</p>
+  <div class="focus-notice">
+    <h1>FOCUS LOST</h1>
+    <p>RETURN TO THE TAB TO CONTINUE</p>
   </div>
 </div>
 <div id="main-content" class="content-wrapper">
@@ -117,7 +110,7 @@
       </div>
     </div>
     <div id="input-area">
-      <textarea id="answer" placeholder="Type your answer here..."></textarea>
+      <textarea id="answer" placeholder="Type your answer here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
       <div class="locked-notice" id="locked-notice">⚑ &nbsp;Answer locked — cannot be changed</div>
       <div style="display:flex;gap:8px;">
         <button class="action-btn" id="review-btn" style="border-color:rgba(0,220,255,0.4);color:#00dcff;flex:1;">Review</button>
@@ -131,35 +124,64 @@
 (function() {
   'use strict';
 
-  const WORKER_URL = "https://server.yyourmom96.workers.dev";
-  const D_CLIENT = '1487244125488152589';
-  const REDIRECT = window.location.origin + window.location.pathname;
-  const MAX_ANSWER_LENGTH = 4000;
+  const _dateNow       = Date.now.bind(Date);
+  const _setInterval   = window.setInterval.bind(window);
+  const _clearInterval = window.clearInterval.bind(window);
+  const _fetch         = window.fetch.bind(window);
+  const _stringify     = JSON.stringify.bind(JSON);
+  const _nativeValueDesc = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
 
-  let current = 0;
-  let answers = [];
-  let lockedQuestions = [];
-  let timerInterval = null;
-  let secondsLeft = 4800;
-  let examStarted = false;
-  let mainQuestions = [];
-  let reviewMode = false;
-  let timerStartEpoch = null;
-  let submitted = false;
-  let lastProgressSent = null;
+  const WORKER_URL      = "https://server.yyourmom96.workers.dev";
+  const D_CLIENT        = '1487244125488152589';
+  const REDIRECT        = window.location.origin + window.location.pathname;
+  const MAX_ANSWER_LEN  = 4000;
+
+  let current           = 0;
+  let answers           = [];
+  let shadowAnswers     = [];
+  let lockedQuestions   = [];
+  let timerInterval     = null;
+  let secondsLeft       = 4800;
+  let serverSecondsAtStart = 4800;
+  let timerStartEpoch   = null;
+  let examStarted       = false;
+  let mainQuestions     = [];
+  let reviewMode        = false;
+  let submitted         = false;
+  let lastProgressSent  = null;
   let questionStartTime = null;
   let questionDurations = [];
-  let autoSubmitted = false;
-  let sessionToken = null;
-  let dUser = null;
-  let rUser = null;
-  let rUsername = "Unknown";
-  let abandonedSent = false;
+  let autoSubmitted     = false;
+  let sessionToken      = null;
+  let dUser             = null;
+  let rUser             = null;
+  let rUsername         = "Unknown";
+  let abandonedSent     = false;
+  let selectAllPending  = false;
+
+  const answerEl  = document.getElementById('answer');
+  const submitBtn = document.getElementById('submit-btn');
+  const reviewBtn = document.getElementById('review-btn');
+  const timerEl   = document.getElementById('timer');
+  const progressEl = document.getElementById('progress');
+
+  function nativeSet(val) {
+    _nativeValueDesc.set.call(answerEl, val);
+  }
+
+  function startMutationGuard() {
+    const mo = new MutationObserver(function() {
+      if (!examStarted || submitted) return;
+      const shouldBeDisabled = lockedQuestions[current];
+      if (answerEl.disabled !== shouldBeDisabled) answerEl.disabled = shouldBeDisabled;
+      if (submitBtn.disabled !== shouldBeDisabled) submitBtn.disabled = shouldBeDisabled;
+    });
+    mo.observe(answerEl,  { attributes: true, attributeFilter: ['disabled', 'readonly'] });
+    mo.observe(submitBtn, { attributes: true, attributeFilter: ['disabled'] });
+  }
 
   function setAppWidth(mode) {
-    const app = document.getElementById('app');
-    if (mode === 'wide') app.classList.add('expanded');
-    else app.classList.remove('expanded');
+    document.getElementById('app').classList.toggle('expanded', mode === 'wide');
   }
 
   function getAnsweredCount() {
@@ -174,85 +196,141 @@
   }
 
   function post(type, extra) {
-    extra = extra || {};
     const headers = { "Content-Type": "application/json" };
     if (sessionToken) headers["X-Exam-Token"] = sessionToken;
-    return fetch(WORKER_URL, {
+    return _fetch(WORKER_URL, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify(Object.assign({ type: type }, extra))
+      body: _stringify(Object.assign({ type: type }, extra || {}))
     });
   }
 
   function postKeepalive(type, extra) {
-    extra = extra || {};
     const headers = { "Content-Type": "application/json" };
     if (sessionToken) headers["X-Exam-Token"] = sessionToken;
-    fetch(WORKER_URL, {
+    _fetch(WORKER_URL, {
       method: "POST",
       headers: headers,
-      body: JSON.stringify(Object.assign({ type: type }, extra)),
+      body: _stringify(Object.assign({ type: type }, extra || {})),
       keepalive: true
     }).catch(function() {});
   }
 
-  function logSecurityEvent(type) {
-    if (!examStarted || submitted) return;
-    post(type, {
+  function examIdentity() {
+    return {
       discordId: dUser && dUser.id,
       discordUsername: dUser && dUser.username,
       robloxId: rUser,
       username: rUsername
-    }).catch(function() {});
+    };
+  }
+
+  function logEvent(type) {
+    if (!examStarted || submitted) return;
+    post(type, examIdentity()).catch(function() {});
   }
 
   function sendAbandonedEvent() {
     if (!examStarted || submitted || abandonedSent) return;
     abandonedSent = true;
-    postKeepalive("EXAM_ABANDONED", {
-      discordId: dUser && dUser.id,
-      discordUsername: dUser && dUser.username,
-      robloxId: rUser,
-      username: rUsername,
+    postKeepalive("EXAM_ABANDONED", Object.assign(examIdentity(), {
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
       avgTime: calcAvgFromDurations()
-    });
+    }));
   }
 
-  window.addEventListener('pagehide', sendAbandonedEvent);
+  window.addEventListener('pagehide',     sendAbandonedEvent);
   window.addEventListener('beforeunload', sendAbandonedEvent);
 
   window.addEventListener('blur', function() {
     if (!examStarted || submitted) return;
-    document.getElementById('main-content').classList.add('blur-shield');
     document.getElementById('overlay').classList.add('active');
-    logSecurityEvent("BLUR_EVENT");
+    logEvent("BLUR_EVENT");
   });
 
   window.addEventListener('focus', function() {
     if (!examStarted || submitted) return;
-    document.getElementById('main-content').classList.remove('blur-shield');
     document.getElementById('overlay').classList.remove('active');
   });
 
   window.addEventListener('keyup', function(e) {
-    if (e.key === 'PrintScreen') {
-      if (examStarted && !submitted) {
-        postKeepalive("SCREENSHOT_EVENT", {
-          discordId: dUser && dUser.id,
-          discordUsername: dUser && dUser.username,
-          robloxId: rUser,
-          username: rUsername
-        });
-      }
-      document.body.innerHTML = '<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:\'Rajdhani\';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">SECURITY VIOLATION</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot detected</p></div>';
+    if (e.key !== 'PrintScreen') return;
+    if (examStarted && !submitted) {
+      postKeepalive("SCREENSHOT_EVENT", examIdentity());
     }
+    document.body.innerHTML = '<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:\'Rajdhani\';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">VIOLATION DETECTED</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot captured</p></div>';
   });
 
+  function handleAnswerKeydown(e) {
+    if (!examStarted || submitted) { e.preventDefault(); return; }
+    if (lockedQuestions[current]) { e.preventDefault(); return; }
+
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); return; }
+
+    if (ctrl && (e.key === 'v' || e.key === 'V' ||
+                 e.key === 'c' || e.key === 'C' ||
+                 e.key === 'x' || e.key === 'X' ||
+                 e.key === 'z' || e.key === 'Z' ||
+                 e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault(); return;
+    }
+
+    if (ctrl && (e.key === 'a' || e.key === 'A')) {
+      selectAllPending = true; return;
+    }
+
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
+      if (selectAllPending) { shadowAnswers[current] = ''; selectAllPending = false; }
+      else { shadowAnswers[current] = (shadowAnswers[current] || '').slice(0, -1); }
+      nativeSet(shadowAnswers[current]);
+      return;
+    }
+
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      const cur = shadowAnswers[current] || '';
+      if (cur.length < MAX_ANSWER_LEN) {
+        shadowAnswers[current] = selectAllPending ? '\n' : cur + '\n';
+        selectAllPending = false;
+        nativeSet(shadowAnswers[current]);
+      }
+      return;
+    }
+
+    if (e.key.length === 1 && !ctrl) {
+      e.preventDefault();
+      const cur = shadowAnswers[current] || '';
+      if (cur.length < MAX_ANSWER_LEN) {
+        shadowAnswers[current] = selectAllPending ? e.key : cur + e.key;
+        selectAllPending = false;
+        nativeSet(shadowAnswers[current]);
+      }
+      return;
+    }
+
+    const passthrough = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End',
+                         'PageUp','PageDown','Escape','Tab','Shift','Control','Alt','Meta',
+                         'CapsLock','NumLock','ScrollLock','Insert',
+                         'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12'];
+    if (passthrough.indexOf(e.key) === -1) e.preventDefault();
+    if (e.key !== 'Control' && e.key !== 'Meta' && e.key !== 'Shift' && e.key !== 'Alt') {
+      selectAllPending = false;
+    }
+  }
+
+  function handleAnswerInput() {
+    if (!examStarted || submitted) { nativeSet(''); return; }
+    nativeSet(shadowAnswers[current] || '');
+  }
+
   function loginDiscord() {
-    window.location.href = 'https://discord.com/oauth2/authorize?client_id=' + D_CLIENT + '&redirect_uri=' + encodeURIComponent(REDIRECT) + '&response_type=token&scope=identify';
+    window.location.href = 'https://discord.com/oauth2/authorize?client_id=' + D_CLIENT +
+      '&redirect_uri=' + encodeURIComponent(REDIRECT) + '&response_type=token&scope=identify';
   }
 
   function showInstructions() {
@@ -260,17 +338,16 @@
     const q = document.getElementById('question');
     q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>';
     Promise.all([
-      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "CHECK_COOLDOWN", discordId: dUser.id }) }),
-      fetch(WORKER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "VERIFY_RANK", discordId: dUser.id }) })
-    ]).then(function(results) {
-      return Promise.all([results[0].json(), results[1].json()]);
+      _fetch(WORKER_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: _stringify({type:"CHECK_COOLDOWN", discordId: dUser.id}) }),
+      _fetch(WORKER_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body: _stringify({type:"VERIFY_RANK",    discordId: dUser.id}) })
+    ]).then(function(rs) {
+      return Promise.all([rs[0].json(), rs[1].json()]);
     }).then(function(data) {
       const cooldown = data[0];
       const rankData = data[1];
-
       if (cooldown.onCooldown) {
         setAppWidth('narrow');
-        q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div class="cooldown-timer-box"><div style="font-size:10px; color:rgba(255,255,255,0.3); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Wait Time Remaining</div><div style="font-family:\'Rajdhani\'; font-size:22px; color:#ff3a3a; font-weight:700;">' + cooldown.timeRemaining + '</div></div></div>';
+        q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div class="cooldown-timer-box"><div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Wait Time Remaining</div><div style="font-family:\'Rajdhani\';font-size:22px;color:#ff3a3a;font-weight:700;">' + cooldown.timeRemaining + '</div></div></div>';
         return;
       }
       if (!rankData.eligible) {
@@ -278,13 +355,13 @@
         q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>';
         return;
       }
-
       sessionToken = rankData.sessionToken || null;
-      rUser = rankData.robloxId;
-      rUsername = rankData.robloxUsername;
+      rUser        = rankData.robloxId;
+      rUsername    = rankData.robloxUsername;
       document.getElementById('notice').style.display = 'none';
       q.classList.add('scrollable');
-      q.innerHTML = '<div class="instr-wrap">' +
+      q.innerHTML =
+        '<div class="instr-wrap">' +
         '<div class="instr-title">Phase 4 — Written Exam</div>' +
         '<div class="instr-alert">You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.</div>' +
         '<div class="info-grid">' +
@@ -293,8 +370,7 @@
           '<div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>' +
           '<div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>' +
         '</div>' +
-        '<div class="instr-section">' +
-          '<div class="instr-section-title">Exam Details</div>' +
+        '<div class="instr-section"><div class="instr-section-title">Exam Details</div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">80 minutes</span> to complete all questions.</span></div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span>Use the blocks below the question counter to navigate freely — you can start with Q5 and jump to Q12 at any time.</span></div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span>You can move between questions freely, but once you <span class="rule-bold">submit</span> an answer it cannot be changed.</span></div>' +
@@ -303,15 +379,14 @@
           '<div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>. Do not close or refresh the page.</span></div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span>A <span class="rule-bold">Bloxlink</span> check will be performed — ensure you are verified beforehand. Verification may fail if Bloxlink is down or has reached its daily API limit.</span></div>' +
         '</div>' +
-        '<div class="instr-section">' +
-          '<div class="instr-section-title">Exam Rules</div>' +
+        '<div class="instr-section"><div class="instr-section-title">Exam Rules</div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span>The usage of <span class="rule-bold">AI is prohibited</span>.</span></div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed.</span> Your answers must be in your own words. Copying from documents or other examinees will result in an immediate fail.</span></div>' +
           '<div class="rule-item"><div class="rule-dot"></div><span>You are not permitted to <span class="rule-bold">share, screenshot, or discuss</span> specific exam questions with anyone.</span></div>' +
         '</div>' +
         '<div style="font-size:11px;color:#556a74;text-align:center;margin-bottom:14px;">If you experience technical difficulties, consult a member of TMP High Command.</div>' +
         '<button class="action-btn" id="begin-btn" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">Begin Exam</button>' +
-      '</div>';
+        '</div>';
       document.getElementById('begin-btn').addEventListener('click', startExam);
     }).catch(function() {
       q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>';
@@ -319,52 +394,45 @@
   }
 
   function startGlobalTimer(serverSeconds) {
-    if (timerInterval) clearInterval(timerInterval);
-    secondsLeft = serverSeconds;
-    timerStartEpoch = Date.now();
-    lastProgressSent = Date.now();
-    const timerEl = document.getElementById('timer');
+    if (timerInterval) _clearInterval(timerInterval);
+    serverSecondsAtStart = serverSeconds;
+    secondsLeft          = serverSeconds;
+    timerStartEpoch      = _dateNow();
+    lastProgressSent     = _dateNow();
     timerEl.style.display = 'block';
 
     function tick() {
-      const elapsedSinceStart = Math.floor((Date.now() - timerStartEpoch) / 1000);
-      const currentRemaining = serverSeconds - elapsedSinceStart;
-
-      if (currentRemaining <= 0) {
-        clearInterval(timerInterval);
-        secondsLeft = 0;
+      const elapsed   = Math.floor((_dateNow() - timerStartEpoch) / 1000);
+      const remaining = serverSecondsAtStart - elapsed;
+      if (remaining <= 0) {
+        _clearInterval(timerInterval);
+        secondsLeft   = 0;
         autoSubmitted = true;
         finalSubmit();
         return;
       }
-
-      secondsLeft = currentRemaining;
-      const m = Math.floor(secondsLeft / 60);
-      const s = secondsLeft % 60;
+      secondsLeft = remaining;
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
       timerEl.innerText = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
-      if (secondsLeft <= 300) timerEl.classList.add('danger');
-
-      if ((Date.now() - lastProgressSent) >= 600000) {
-        lastProgressSent = Date.now();
+      if (remaining <= 300) timerEl.classList.add('danger');
+      if ((_dateNow() - lastProgressSent) >= 900000) {
+        lastProgressSent = _dateNow();
         sendProgressUpdate();
       }
     }
 
     tick();
-    timerInterval = setInterval(tick, 1000);
+    timerInterval = _setInterval(tick, 1000);
   }
 
   function sendProgressUpdate() {
-    post("PROGRESS_UPDATE", {
-      discordId: dUser && dUser.id,
-      discordUsername: dUser && dUser.username,
-      robloxId: rUser,
-      username: rUsername,
+    post("PROGRESS_UPDATE", Object.assign(examIdentity(), {
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
       avgTime: calcAvgFromDurations()
-    }).catch(function() {});
+    })).catch(function() {});
   }
 
   function startExam() {
@@ -375,44 +443,41 @@
     q.classList.remove('scrollable');
     q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing Session...</div>';
 
-    post("START_EXAM_LOG", {
-      discordId: dUser && dUser.id,
-      discordUsername: dUser && dUser.username,
-      robloxId: rUser,
-      username: rUsername
-    }).then(function(res) {
+    post("START_EXAM_LOG", examIdentity()).then(function(res) {
       return res.json();
     }).then(function(log) {
       return post("FETCH_QUESTIONS", { discordId: dUser && dUser.id }).then(function(res) {
         return res.json();
       }).then(function(qData) {
-        mainQuestions = qData.questions;
-        answers = new Array(mainQuestions.length).fill("");
-        lockedQuestions = new Array(mainQuestions.length).fill(false);
+        mainQuestions     = qData.questions;
+        answers           = new Array(mainQuestions.length).fill("");
+        shadowAnswers     = new Array(mainQuestions.length).fill("");
+        lockedQuestions   = new Array(mainQuestions.length).fill(false);
         questionDurations = new Array(mainQuestions.length).fill(0);
-        examStarted = true;
+        examStarted       = true;
         buildSegTracker(mainQuestions.length);
         document.getElementById('input-area').style.display = 'flex';
+        startMutationGuard();
         startGlobalTimer(log.secondsLeft);
         loadQuestion();
       });
     }).catch(function() {
-      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Failed to initialize security session.</div>';
+      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Failed to initialize session.</div>';
     });
   }
 
   function loadQuestion() {
-    questionStartTime = Date.now();
-    const q = document.getElementById('question');
+    questionStartTime = _dateNow();
+    selectAllPending  = false;
+    const q  = document.getElementById('question');
+    const lk = lockedQuestions[current];
     q.classList.toggle('scrollable', mainQuestions[current].length > 250);
     q.style.textAlign = mainQuestions[current].length > 250 ? 'left' : 'center';
-    document.getElementById('progress').innerText = 'Question ' + (current + 1) + ' / ' + mainQuestions.length;
+    progressEl.innerText = 'Question ' + (current + 1) + ' / ' + mainQuestions.length;
     updateSegTracker();
-    const ans = document.getElementById('answer');
-    const lk = lockedQuestions[current];
-    ans.value = answers[current];
-    ans.disabled = lk;
-    document.getElementById('submit-btn').disabled = lk;
+    answerEl.disabled  = lk;
+    submitBtn.disabled = lk;
+    nativeSet(lk ? (answers[current] || '') : (shadowAnswers[current] || ''));
     document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
     q.innerText = mainQuestions[current];
   }
@@ -420,19 +485,18 @@
   function buildSegTracker(total) {
     const tracker = document.getElementById('segTracker');
     tracker.innerHTML = '';
-    for (let i = 0; i < total; i++) {
+    for (var i = 0; i < total; i++) {
       (function(idx) {
-        const b = document.createElement('div');
+        var b = document.createElement('div');
         b.className = 'seg-block clickable';
         b.id = 'seg-' + idx;
         b.addEventListener('click', function() {
-          if (!reviewMode) {
-            if (questionStartTime && !lockedQuestions[current]) {
-              questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
-            }
-            current = idx;
-            loadQuestion();
+          if (reviewMode) return;
+          if (questionStartTime && !lockedQuestions[current]) {
+            questionDurations[current] += Math.floor((_dateNow() - questionStartTime) / 1000);
           }
+          current = idx;
+          loadQuestion();
         });
         tracker.appendChild(b);
       })(i);
@@ -440,31 +504,29 @@
   }
 
   function updateSegTracker() {
-    mainQuestions.forEach(function(_, i) {
-      const b = document.getElementById('seg-' + i);
-      if (!b) return;
+    for (var i = 0; i < mainQuestions.length; i++) {
+      var b = document.getElementById('seg-' + i);
+      if (!b) continue;
       b.className = 'seg-block clickable';
       if (lockedQuestions[i]) b.classList.add('locked');
       else if (answers[i] && answers[i].trim()) b.classList.add('filled');
       if (i === current) b.classList.add('current');
-    });
+    }
   }
 
   function saveAndNext() {
-    const rawVal = document.getElementById('answer').value;
-    const val = rawVal.slice(0, MAX_ANSWER_LENGTH).trim();
+    if (!examStarted || submitted || lockedQuestions[current]) return;
+    const val = (shadowAnswers[current] || '').slice(0, MAX_ANSWER_LEN).trim();
     if (!val) return;
     if (questionStartTime) {
-      questionDurations[current] += Math.floor((Date.now() - questionStartTime) / 1000);
+      questionDurations[current] += Math.floor((_dateNow() - questionStartTime) / 1000);
     }
-    answers[current] = val;
+    answers[current]         = val;
     lockedQuestions[current] = true;
-    if (current < mainQuestions.length - 1) {
-      current++;
-      loadQuestion();
-    } else {
-      showReview();
-    }
+    shadowAnswers[current]   = val;
+    nativeSet('');
+    if (current < mainQuestions.length - 1) { current++; loadQuestion(); }
+    else { showReview(); }
   }
 
   function showReview() {
@@ -472,18 +534,22 @@
     reviewMode = true;
     document.getElementById('input-area').style.display = 'none';
     updateSegTracker();
-    let html = '<div style="width:100%;"><div class="review-header">Review Submissions</div><div class="review-list">';
-    mainQuestions.forEach(function(q, i) {
-      const hasAns = answers[i] && answers[i].trim();
-      html += '<div class="review-row"><div class="review-qnum">Q' + (i + 1) + '</div><div class="review-ans ' + (hasAns ? '' : 'missing') + '">' + (hasAns ? answers[i].replace(/&/g, '&amp;').replace(/</g, '&lt;') : 'No answer') + '</div></div>';
-    });
-    html += '</div><div style="display:flex;gap:8px;">' + (secondsLeft > 0 ? '<button class="action-btn" id="back-btn" style="flex:1;">Back</button>' : '') + '<button class="action-btn" id="final-btn" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button></div></div>';
-    const q = document.getElementById('question');
+    var html = '<div style="width:100%;"><div class="review-header">Review Submissions</div><div class="review-list">';
+    for (var i = 0; i < mainQuestions.length; i++) {
+      var hasAns = answers[i] && answers[i].trim();
+      html += '<div class="review-row"><div class="review-qnum">Q' + (i + 1) + '</div>' +
+              '<div class="review-ans ' + (hasAns ? '' : 'missing') + '">' +
+              (hasAns ? answers[i].replace(/&/g,'&amp;').replace(/</g,'&lt;') : 'No answer') +
+              '</div></div>';
+    }
+    html += '</div><div style="display:flex;gap:8px;">' +
+      (secondsLeft > 0 ? '<button class="action-btn" id="back-btn" style="flex:1;">Back</button>' : '') +
+      '<button class="action-btn" id="final-btn" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button>' +
+      '</div></div>';
+    var q = document.getElementById('question');
     q.classList.add('scrollable');
     q.innerHTML = html;
-    if (secondsLeft > 0) {
-      document.getElementById('back-btn').addEventListener('click', resumeExam);
-    }
+    if (secondsLeft > 0) document.getElementById('back-btn').addEventListener('click', resumeExam);
     document.getElementById('final-btn').addEventListener('click', finalSubmit);
   }
 
@@ -497,55 +563,57 @@
   function finalSubmit() {
     if (submitted) return;
     submitted = true;
-    clearInterval(timerInterval);
-    const q = document.getElementById('question');
-    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Finalizing Assessment...</div>';
-    post("SUBMIT_EXAM", {
-      discordId: dUser && dUser.id,
-      discordUsername: dUser && dUser.username,
-      robloxId: rUser,
-      username: rUsername,
-      answers: answers.map(function(a) { return (a || "").slice(0, MAX_ANSWER_LENGTH); }),
+    _clearInterval(timerInterval);
+    var q = document.getElementById('question');
+    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting your exam...</div>';
+    post("SUBMIT_EXAM", Object.assign(examIdentity(), {
+      answers: answers.map(function(a) { return (a || '').slice(0, MAX_ANSWER_LEN); }),
       avgTime: calcAvgFromDurations(),
       autoSubmit: autoSubmitted
-    }).then(function(res) {
+    })).then(function(res) {
       return res.json().then(function(result) {
         if (res.ok) {
-          q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:18px;font-weight:700;color:#00dcff;">SUBMITTED</div><p style="font-size:12px;color:#556a74;">Your responses have been logged for review.</p></div>';
+          var methodMsg = '';
+          if (result.method === 'embed') {
+            methodMsg = 'Your responses were submitted via embed.';
+          } else if (result.method === 'txt') {
+            methodMsg = 'Discord rejected the embed — your responses were submitted as a TXT file instead.';
+          } else {
+            methodMsg = 'Your responses were submitted, but there may have been a delivery issue. Contact High Command if needed.';
+          }
+          q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:18px;font-weight:700;color:#00dcff;margin-bottom:8px;">SUBMITTED</div><p style="font-size:12px;color:#8aa4b0;line-height:1.6;">' + methodMsg + '</p></div>';
           document.getElementById('input-area').style.display = 'none';
           document.getElementById('metaRow').style.display = 'none';
           document.getElementById('segTracker').style.display = 'none';
         } else {
           submitted = false;
-          q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Submission Error: ' + (result.error || 'Unknown') + '</div>';
+          var errMsg = result.error || 'Unknown error';
+          q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;">' + errMsg + '</p></div>';
         }
       });
     }).catch(function() {
       submitted = false;
-      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Critical submission failure.</div>';
+      q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;">A network error occurred. Please try again.</p></div>';
     });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('login-btn').addEventListener('click', loginDiscord);
+    submitBtn.addEventListener('click', saveAndNext);
+    reviewBtn.addEventListener('click', function() { if (examStarted && !submitted) showReview(); });
 
-    document.getElementById('submit-btn').addEventListener('click', saveAndNext);
-    document.getElementById('review-btn').addEventListener('click', function() {
-      if (examStarted && !submitted) showReview();
-    });
+    answerEl.addEventListener('keydown', handleAnswerKeydown);
+    answerEl.addEventListener('input',   handleAnswerInput);
+    answerEl.addEventListener('paste',   function(e) { e.preventDefault(); });
+    answerEl.addEventListener('copy',    function(e) { e.preventDefault(); });
+    answerEl.addEventListener('cut',     function(e) { e.preventDefault(); });
+    answerEl.addEventListener('drop',    function(e) { e.preventDefault(); });
 
-    const answerEl = document.getElementById('answer');
-    answerEl.addEventListener('paste', function(e) { e.preventDefault(); });
-    answerEl.addEventListener('copy', function(e) { e.preventDefault(); });
-    answerEl.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); }
-    });
-
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    const token = hash.get('access_token');
+    var hash  = new URLSearchParams(window.location.hash.slice(1));
+    var token = hash.get('access_token');
     if (token) {
       history.replaceState(null, document.title, window.location.pathname + window.location.search);
-      fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } })
+      _fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } })
         .then(function(r) { return r.json(); })
         .then(function(user) { dUser = user; showInstructions(); });
     }
