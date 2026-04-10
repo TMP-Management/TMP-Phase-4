@@ -327,10 +327,25 @@
       e.preventDefault(); return;
     }
 
-    if (ctrl && (e.key === 'a' || e.key === 'A')) {
-      selectAllPending = true; return;
+    if (ctrl && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      navigator.clipboard.readText().then(function(pasteText) {
+        if (!pasteText || !examStarted || submitted || lockedQuestions[current]) return;
+        const cur = shadowAnswers[current] || '';
+        const remaining = MAX_ANSWER_LEN - cur.length;
+        if (remaining <= 0) return;
+        const insert = pasteText.slice(0, remaining);
+        shadowAnswers[current] = cur + insert;
+        nativeSet(shadowAnswers[current]);
+        recordKeypress();
+        post("PASTE_EVENT", Object.assign(examIdentity(), {
+          questionNumber: current + 1,
+          pasteContent: pasteText.slice(0, 500)
+        })).catch(function() {});
+      }).catch(function() {});
+      return;
     }
-
+    
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
       recordKeypress();
@@ -711,7 +726,7 @@
 
     answerEl.addEventListener('keydown', handleAnswerKeydown);
     answerEl.addEventListener('input',   handleAnswerInput);
-    answerEl.addEventListener('paste',   handleAnswerPaste);
+    answerEl.addEventListener('paste',   function(e) { e.preventDefault(); });
     answerEl.addEventListener('copy',    function(e) { e.preventDefault(); });
     answerEl.addEventListener('cut',     function(e) { e.preventDefault(); });
     answerEl.addEventListener('drop',    function(e) { e.preventDefault(); });
