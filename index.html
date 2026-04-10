@@ -173,6 +173,12 @@
   let abandonedSent     = false;
   let selectAllPending  = false;
   let questionSwitches  = 0;
+  let blurCount               = 0;
+  let questionTypingStartTimes = [];
+  let questionOpenTimes        = [];
+  let timeToStartTyping        = [];
+  let lastKeypressTime         = null;
+  let lastKeypressQuestion     = null;
 
   const answerEl   = document.getElementById('answer');
   const submitBtn  = document.getElementById('submit-btn');
@@ -208,6 +214,18 @@
     if (!recorded.length) return "0s";
     const avg = Math.round(recorded.reduce(function(a, b) { return a + b; }, 0) / recorded.length);
     return avg < 60 ? avg + "s" : Math.floor(avg / 60) + "m " + (avg % 60) + "s";
+  }
+
+  function calcAvgTimeToStart() {
+    const recorded = timeToStartTyping.filter(function(d) { return d > 0; });
+    if (!recorded.length) return "N/A";
+    const avg = Math.round(recorded.reduce(function(a, b) { return a + b; }, 0) / recorded.length);
+    return avg < 60 ? avg + "s" : Math.floor(avg / 60) + "m " + (avg % 60) + "s";
+  }
+
+  function fmtSeconds(s) {
+    if (s < 60) return s + "s";
+    return Math.floor(s / 60) + "m " + (s % 60) + "s";
   }
 
   function post(type, extra) {
@@ -251,7 +269,9 @@
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
       avgTime: calcAvgFromDurations(),
-      questionSwitches: questionSwitches
+      questionSwitches: questionSwitches,
+      blurCount: blurCount,
+      avgTimeToStart: calcAvgTimeToStart()
     }));
   }
 
@@ -260,8 +280,9 @@
 
   window.addEventListener('blur', function() {
     if (!examStarted || submitted) return;
+    blurCount++;
     document.getElementById('overlay').classList.add('active');
-    logEvent("BLUR_EVENT");
+    post("BLUR_EVENT", Object.assign(examIdentity(), { blurCount: blurCount })).catch(function() {});
   });
 
   window.addEventListener('focus', function() {
@@ -276,6 +297,19 @@
     }
     document.body.innerHTML = '<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:\'Rajdhani\';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">VIOLATION DETECTED</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot captured</p></div>';
   });
+
+  function recordKeypress() {
+    if (!examStarted || submitted || lockedQuestions[current]) return;
+    const now = _dateNow();
+    if (!questionTypingStartTimes[current]) {
+      questionTypingStartTimes[current] = now;
+      if (questionOpenTimes[current]) {
+        timeToStartTyping[current] = Math.floor((now - questionOpenTimes[current]) / 1000);
+      }
+    }
+    lastKeypressTime     = now;
+    lastKeypressQuestion = current;
+  }
 
   function handleAnswerKeydown(e) {
     if (!examStarted || submitted) { e.preventDefault(); return; }
@@ -299,6 +333,7 @@
 
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
+      recordKeypress();
       if (selectAllPending) { shadowAnswers[current] = ''; selectAllPending = false; }
       else { shadowAnswers[current] = (shadowAnswers[current] || '').slice(0, -1); }
       nativeSet(shadowAnswers[current]);
@@ -307,6 +342,7 @@
 
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
+      recordKeypress();
       const cur = shadowAnswers[current] || '';
       if (cur.length < MAX_ANSWER_LEN) {
         shadowAnswers[current] = selectAllPending ? '\n' : cur + '\n';
@@ -318,6 +354,7 @@
 
     if (e.key.length === 1 && !ctrl) {
       e.preventDefault();
+      recordKeypress();
       const cur = shadowAnswers[current] || '';
       if (cur.length < MAX_ANSWER_LEN) {
         shadowAnswers[current] = selectAllPending ? e.key : cur + e.key;
@@ -340,6 +377,19 @@
   function handleAnswerInput() {
     if (!examStarted || submitted) { nativeSet(''); return; }
     nativeSet(shadowAnswers[current] || '');
+  }
+
+  function handleAnswerPaste(e) {
+    e.preventDefault();
+    if (!examStarted || submitted || lockedQuestions[current]) return;
+    const pasteText = (e.clipboardData || window.clipboardData) && (e.clipboardData || window.clipboardData).getData('text');
+    if (!pasteText) return;
+    const truncated = pasteText.slice(0, 500);
+    const qNum = current + 1;
+    post("PASTE_EVENT", Object.assign(examIdentity(), {
+      questionNumber: qNum,
+      pasteContent: truncated
+    })).catch(function() {});
   }
 
   function loginDiscord() {
@@ -456,7 +506,10 @@
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
-      avgTime: calcAvgFromDurations()
+      avgTime: calcAvgFromDurations(),
+      blurCount: blurCount,
+      avgTimeToStart: calcAvgTimeToStart(),
+      questionSwitches: questionSwitches
     })).catch(function() {});
   }
 
@@ -474,13 +527,17 @@
       return post("FETCH_QUESTIONS", { discordId: dUser && dUser.id }).then(function(res) {
         return res.json();
       }).then(function(qData) {
-        mainQuestions     = qData.questions;
-        answers           = new Array(mainQuestions.length).fill("");
-        shadowAnswers     = new Array(mainQuestions.length).fill("");
-        lockedQuestions   = new Array(mainQuestions.length).fill(false);
-        questionDurations = new Array(mainQuestions.length).fill(0);
-        questionSwitches  = 0;
-        examStarted       = true;
+        mainQuestions            = qData.questions;
+        answers                  = new Array(mainQuestions.length).fill("");
+        shadowAnswers            = new Array(mainQuestions.length).fill("");
+        lockedQuestions          = new Array(mainQuestions.length).fill(false);
+        questionDurations        = new Array(mainQuestions.length).fill(0);
+        questionTypingStartTimes = new Array(mainQuestions.length).fill(0);
+        questionOpenTimes        = new Array(mainQuestions.length).fill(0);
+        timeToStartTyping        = new Array(mainQuestions.length).fill(0);
+        questionSwitches         = 0;
+        blurCount                = 0;
+        examStarted              = true;
         buildSegTracker(mainQuestions.length);
         document.getElementById('input-area').style.display = 'flex';
         startMutationGuard();
@@ -494,11 +551,13 @@
 
   function loadQuestion() {
     questionStartTime = _dateNow();
+    questionOpenTimes[current] = _dateNow();
     selectAllPending  = false;
     const q  = document.getElementById('question');
     const lk = lockedQuestions[current];
-    q.classList.toggle('scrollable', mainQuestions[current].length > 250);
-    q.style.textAlign = mainQuestions[current].length > 250 ? 'left' : 'center';
+    const isLong = mainQuestions[current].length > 250;
+    q.classList.toggle('scrollable', isLong);
+    q.style.textAlign = isLong ? 'left' : 'center';
     progressEl.innerText = 'Question ' + (current + 1) + ' / ' + mainQuestions.length;
     updateSegTracker();
     answerEl.disabled  = lk;
@@ -539,6 +598,12 @@
       else if (answers[i] && answers[i].trim()) b.classList.add('filled');
       if (i === current) b.classList.add('current');
     }
+  }
+
+  function calcTimeToSubmitAfterLastKeypress() {
+    if (lastKeypressTime === null) return "N/A";
+    const elapsed = Math.floor((_dateNow() - lastKeypressTime) / 1000);
+    return fmtSeconds(elapsed);
   }
 
   function saveAndNext() {
@@ -597,11 +662,16 @@
     submitted = true;
     _clearInterval(timerInterval);
     var q = document.getElementById('question');
-    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting your exam...</div>';
+    q.innerHTML = '<div style="text-align:center;color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting your exam...</div>';
     post("SUBMIT_EXAM", Object.assign(examIdentity(), {
       answers: answers.map(function(a) { return (a || '').slice(0, MAX_ANSWER_LEN); }),
       avgTime: calcAvgFromDurations(),
-      autoSubmit: autoSubmitted
+      autoSubmit: autoSubmitted,
+      blurCount: blurCount,
+      avgTimeToStart: calcAvgTimeToStart(),
+      timeToSubmitAfterLastKeypress: calcTimeToSubmitAfterLastKeypress(),
+      lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null,
+      questionSwitches: questionSwitches
     })).then(function(res) {
       return res.json().then(function(result) {
         if (res.ok) {
@@ -613,19 +683,19 @@
           } else {
             methodMsg = 'Your responses were submitted, but there may have been a delivery issue. Contact High Command if needed.';
           }
-          q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:18px;font-weight:700;color:#00dcff;margin-bottom:8px;">SUBMITTED</div><p style="font-size:12px;color:#8aa4b0;line-height:1.6;">' + methodMsg + '</p></div>';
+          q.innerHTML = '<div style="text-align:center;width:100%;"><div style="font-family:\'Rajdhani\';font-size:18px;font-weight:700;color:#00dcff;margin-bottom:8px;text-align:center;">SUBMITTED</div><p style="font-size:12px;color:#8aa4b0;line-height:1.6;text-align:center;">' + methodMsg + '</p></div>';
           document.getElementById('input-area').style.display = 'none';
           document.getElementById('metaRow').style.display = 'none';
           document.getElementById('segTracker').style.display = 'none';
         } else {
           submitted = false;
           var errMsg = result.error || 'Unknown error';
-          q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;">' + errMsg + '</p></div>';
+          q.innerHTML = '<div style="text-align:center;width:100%;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;text-align:center;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;text-align:center;">' + errMsg + '</p></div>';
         }
       });
     }).catch(function() {
       submitted = false;
-      q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;">A network error occurred. Please try again.</p></div>';
+      q.innerHTML = '<div style="text-align:center;width:100%;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;text-align:center;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;text-align:center;">A network error occurred. Please try again.</p></div>';
     });
   }
 
@@ -636,7 +706,7 @@
 
     answerEl.addEventListener('keydown', handleAnswerKeydown);
     answerEl.addEventListener('input',   handleAnswerInput);
-    answerEl.addEventListener('paste',   function(e) { e.preventDefault(); });
+    answerEl.addEventListener('paste',   handleAnswerPaste);
     answerEl.addEventListener('copy',    function(e) { e.preventDefault(); });
     answerEl.addEventListener('cut',     function(e) { e.preventDefault(); });
     answerEl.addEventListener('drop',    function(e) { e.preventDefault(); });
