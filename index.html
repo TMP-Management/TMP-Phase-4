@@ -389,11 +389,16 @@
     if (!examStarted || submitted || lockedQuestions[current]) return;
     const pasteText = (e.clipboardData || window.clipboardData) && (e.clipboardData || window.clipboardData).getData('text');
     if (!pasteText) return;
-    const truncated = pasteText.slice(0, 500);
-    const qNum = current + 1;
+    const cur = shadowAnswers[current] || '';
+    const remaining = MAX_ANSWER_LEN - cur.length;
+    if (remaining <= 0) return;
+    const insert = pasteText.slice(0, remaining);
+    shadowAnswers[current] = cur + insert;
+    nativeSet(shadowAnswers[current]);
+    recordKeypress();
     post("PASTE_EVENT", Object.assign(examIdentity(), {
-      questionNumber: qNum,
-      pasteContent: truncated
+      questionNumber: current + 1,
+      pasteContent: pasteText.slice(0, 500)
     })).catch(function() {});
   }
 
