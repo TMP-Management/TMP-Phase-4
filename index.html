@@ -329,15 +329,6 @@
 
     if (ctrl && (e.key === 'v' || e.key === 'V')) {
       e.preventDefault();
-      if (lockedQuestions[current]) return;
-      navigator.clipboard.readText().then(function(pasteText) {
-        if (!pasteText) return;
-        const truncated = pasteText.slice(0, 500);
-        post("PASTE_EVENT", Object.assign(examIdentity(), {
-          questionNumber: current + 1,
-          pasteContent: truncated
-        })).catch(function() {});
-      }).catch(function() {});
       return;
     }
 
