@@ -271,7 +271,8 @@
       avgTime: calcAvgFromDurations(),
       questionSwitches: questionSwitches,
       blurCount: blurCount,
-      avgTimeToStart: calcAvgTimeToStart()
+      avgTimeToStart: calcAvgTimeToStart(),
+      lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null
     }));
   }
 
@@ -319,12 +320,25 @@
 
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); return; }
 
-    if (ctrl && (e.key === 'v' || e.key === 'V' ||
-                 e.key === 'c' || e.key === 'C' ||
+    if (ctrl && (e.key === 'c' || e.key === 'C' ||
                  e.key === 'x' || e.key === 'X' ||
                  e.key === 'z' || e.key === 'Z' ||
                  e.key === 'y' || e.key === 'Y')) {
       e.preventDefault(); return;
+    }
+
+    if (ctrl && (e.key === 'v' || e.key === 'V')) {
+      e.preventDefault();
+      if (lockedQuestions[current]) return;
+      navigator.clipboard.readText().then(function(pasteText) {
+        if (!pasteText) return;
+        const truncated = pasteText.slice(0, 500);
+        post("PASTE_EVENT", Object.assign(examIdentity(), {
+          questionNumber: current + 1,
+          pasteContent: truncated
+        })).catch(function() {});
+      }).catch(function() {});
+      return;
     }
 
     if (ctrl && (e.key === 'a' || e.key === 'A')) {
