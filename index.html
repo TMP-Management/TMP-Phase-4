@@ -276,11 +276,8 @@
     }));
   }
 
-  window.addEventListener('pagehide',        sendAbandonedEvent);
-  window.addEventListener('beforeunload',    sendAbandonedEvent);
-  document.addEventListener('visibilitychange', function() {
-    if (document.visibilityState === 'hidden') sendAbandonedEvent();
-  });
+  window.addEventListener('pagehide',     sendAbandonedEvent);
+  window.addEventListener('beforeunload', sendAbandonedEvent);
 
   window.addEventListener('blur', function() {
     if (!examStarted || submitted) return;
