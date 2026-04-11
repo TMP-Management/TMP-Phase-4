@@ -644,15 +644,8 @@
     answers[current]         = val;
     lockedQuestions[current] = true;
     shadowAnswers[current]   = val;
+    lastKeypressTime         = _dateNow();
     nativeSet('');
-    if (current < mainQuestions.length - 1) {
-      questionSwitches++;
-      current++;
-      loadQuestion();
-    } else {
-      showReview();
-    }
-  }
 
   function showReview() {
     setAppWidth('wide');
