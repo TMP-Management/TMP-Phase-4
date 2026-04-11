@@ -547,30 +547,35 @@
     q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing Session...</div>';
 
     post("START_EXAM_LOG", examIdentity()).then(function(res) {
-      return res.json();
+      return res.json().then(function(log) {
+        if (!res.ok) throw new Error(log.error || 'Failed to start session.');
+        return log;
+      });
     }).then(function(log) {
       return post("FETCH_QUESTIONS", { discordId: dUser && dUser.id }).then(function(res) {
-        return res.json();
-      }).then(function(qData) {
-        mainQuestions            = qData.questions;
-        answers                  = new Array(mainQuestions.length).fill("");
-        shadowAnswers            = new Array(mainQuestions.length).fill("");
-        lockedQuestions          = new Array(mainQuestions.length).fill(false);
-        questionDurations        = new Array(mainQuestions.length).fill(0);
-        questionTypingStartTimes = new Array(mainQuestions.length).fill(0);
-        questionOpenTimes        = new Array(mainQuestions.length).fill(0);
-        timeToStartTyping        = new Array(mainQuestions.length).fill(0);
-        questionSwitches         = 0;
-        blurCount                = 0;
-        examStarted              = true;
-        buildSegTracker(mainQuestions.length);
-        document.getElementById('input-area').style.display = 'flex';
-        startMutationGuard();
-        startGlobalTimer(log.secondsLeft);
-        loadQuestion();
+        return res.json().then(function(qData) {
+          if (!res.ok) throw new Error(qData.error || 'Failed to fetch questions.');
+          if (!Array.isArray(qData.questions) || !qData.questions.length) throw new Error('No questions returned.');
+          mainQuestions            = qData.questions;
+          answers                  = new Array(mainQuestions.length).fill("");
+          shadowAnswers            = new Array(mainQuestions.length).fill("");
+          lockedQuestions          = new Array(mainQuestions.length).fill(false);
+          questionDurations        = new Array(mainQuestions.length).fill(0);
+          questionTypingStartTimes = new Array(mainQuestions.length).fill(0);
+          questionOpenTimes        = new Array(mainQuestions.length).fill(0);
+          timeToStartTyping        = new Array(mainQuestions.length).fill(0);
+          questionSwitches         = 0;
+          blurCount                = 0;
+          examStarted              = true;
+          buildSegTracker(mainQuestions.length);
+          document.getElementById('input-area').style.display = 'flex';
+          startMutationGuard();
+          startGlobalTimer(log.secondsLeft);
+          loadQuestion();
+        });
       });
-    }).catch(function() {
-      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Failed to initialize session.</div>';
+    }).catch(function(err) {
+      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">' + (err && err.message ? err.message : 'Failed to initialize session.') + '</div>';
     });
   }
 
