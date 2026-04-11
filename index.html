@@ -145,7 +145,7 @@
     { label: "Hosting Guide",                    url: "https://docs.google.com/document/d/1kc9olGUABL4XO4azgbnXG3f49mvhI5fWTSFF3eX21j8/edit?usp=sharing" },
     { label: "Hosting Script",                   url: "https://docs.google.com/document/d/1fa7CC4P2p15ZUQUZF4Wq-sUT_KDK3CjQ4J0CU77XYEw/edit?usp=sharing" },
     { label: "Administrative Commands Handbook", url: "https://docs.google.com/document/d/1U9pq6PKUzCzV_2BqCOxeAZEAfB6dxsoDWx64Zkgpv7c/edit?usp=sharing" },
-    { label: "Return Policy and Retirement Benefits",       url: "https://docs.google.com/document/d/1Q9_UNjVCyL0iNkWcj0yqz0PI1EEaRRE65bQBgXy26XQ/edit?usp=sharing" },
+    { label: "Return Policy and Retirement Benefits", url: "https://docs.google.com/document/d/1Q9_UNjVCyL0iNkWcj0yqz0PI1EEaRRE65bQBgXy26XQ/edit?usp=sharing" },
     { label: "HICOM Handbook",                   url: "https://docs.google.com/document/d/1egRwl4aRBNEo1WlUWTc_cwWyH3SNVOduWbP8qsOo9G0/edit?usp=sharing" },
     { label: "Leadership Fundamentals",          url: "https://docs.google.com/document/d/1rGF5CHhb5CP56tMUX9GOinRv28b_tfZYtTB2DGYrIHw/edit?usp=sharing" },
     { label: "Punishment Board",                 url: "https://docs.google.com/document/d/1gvnJz81CBqyssswhFskc7Yr2M4duE7tHNFsC95htgj4/edit?usp=sharing" }
@@ -334,7 +334,7 @@
     if (ctrl && (e.key === 'v' || e.key === 'V')) {
       return;
     }
-    
+
     if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
       recordKeypress();
@@ -646,6 +646,24 @@
     shadowAnswers[current]   = val;
     lastKeypressTime         = _dateNow();
     nativeSet('');
+
+    const next = (function() {
+      for (var i = current + 1; i < mainQuestions.length; i++) {
+        if (!lockedQuestions[i]) return i;
+      }
+      for (var j = 0; j < current; j++) {
+        if (!lockedQuestions[j]) return j;
+      }
+      return -1;
+    })();
+
+    if (next === -1) {
+      showReview();
+    } else {
+      current = next;
+      loadQuestion();
+    }
+  }
 
   function showReview() {
     setAppWidth('wide');
