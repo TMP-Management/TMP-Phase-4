@@ -276,8 +276,11 @@
     }));
   }
 
-  window.addEventListener('pagehide',     sendAbandonedEvent);
-  window.addEventListener('beforeunload', sendAbandonedEvent);
+  window.addEventListener('pagehide',        sendAbandonedEvent);
+  window.addEventListener('beforeunload',    sendAbandonedEvent);
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') sendAbandonedEvent();
+  });
 
   window.addEventListener('blur', function() {
     if (!examStarted || submitted) return;
@@ -315,6 +318,7 @@
   function handleAnswerKeydown(e) {
     if (!examStarted || submitted) { e.preventDefault(); return; }
     if (lockedQuestions[current]) { e.preventDefault(); return; }
+    if (isMobile()) return;
 
     const ctrl = e.ctrlKey || e.metaKey;
 
@@ -374,8 +378,19 @@
     }
   }
 
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  }
+
   function handleAnswerInput() {
     if (!examStarted || submitted) { nativeSet(''); return; }
+    if (isMobile()) {
+      const val = answerEl.value.slice(0, MAX_ANSWER_LEN);
+      shadowAnswers[current] = val;
+      if (answerEl.value !== val) nativeSet(val);
+      recordKeypress();
+      return;
+    }
     nativeSet(shadowAnswers[current] || '');
   }
 
