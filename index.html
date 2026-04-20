@@ -139,6 +139,7 @@
   const D_CLIENT       = '1487244125488152589';
   const REDIRECT       = window.location.origin + window.location.pathname;
   const MAX_ANSWER_LEN = 4000;
+  const QUESTIONS_PER_EXAM = 15;
 
   const DOCS = [
     { label: "Operational Codex",               url: "https://docs.google.com/document/d/1yba6E9Irhu0BEeWRZzrTwTVzm012mYwEqQSmY5l_Jhs/edit?usp=sharing" },
@@ -461,7 +462,7 @@
         '<div class="instr-alert">You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.</div>' +
         '<div class="info-grid">' +
           '<div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">80 min</div></div>' +
-          '<div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">19</div></div>' +
+          '<div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">' + QUESTIONS_PER_EXAM + '</div></div>' +
           '<div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>' +
           '<div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>' +
         '</div>' +
