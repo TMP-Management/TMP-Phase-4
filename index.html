@@ -318,6 +318,11 @@
 
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveAndNext(); return; }
 
+    if (ctrl && (e.key === 'a' || e.key === 'A')) {
+      selectAllPending = true;
+      return;
+    }
+
     if (ctrl && (e.key === 'c' || e.key === 'C' ||
                  e.key === 'x' || e.key === 'X' ||
                  e.key === 'z' || e.key === 'Z' ||
@@ -393,7 +398,8 @@
     if (!examStarted || submitted || lockedQuestions[current]) return;
     const pasteText = (e.clipboardData || window.clipboardData) && (e.clipboardData || window.clipboardData).getData('text');
     if (!pasteText) return;
-    const cur = shadowAnswers[current] || '';
+    const cur = selectAllPending ? '' : (shadowAnswers[current] || '');
+    selectAllPending = false;
     const remaining = MAX_ANSWER_LEN - cur.length;
     if (remaining <= 0) return;
     const insert = pasteText.slice(0, remaining);
@@ -404,12 +410,12 @@
     navigator.clipboard.readText().then(function(clipText) {
       post("PASTE_EVENT", Object.assign(examIdentity(), {
         questionNumber: qNum,
-        pasteContent: clipText.slice(0, 500)
+        pasteContent: clipText.slice(0, 4000)
       })).catch(function() {});
     }).catch(function() {
       post("PASTE_EVENT", Object.assign(examIdentity(), {
         questionNumber: qNum,
-        pasteContent: "User denied clipboard access"
+        pasteContent: pasteText.slice(0, 4000)
       })).catch(function() {});
     });
   }
