@@ -258,10 +258,10 @@
     };
   }
 
-  function sendAbandonedEvent() {
+function sendAbandonedEvent() {
     if (!examStarted || submitted || abandonedSent) return;
     abandonedSent = true;
-    postKeepalive("EXAM_ABANDONED", Object.assign(examIdentity(), {
+    var payload = _stringify(Object.assign({ type: "EXAM_ABANDONED", _st: sessionToken }, examIdentity(), {
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
@@ -271,6 +271,22 @@
       avgTimeToStart: calcAvgTimeToStart(),
       lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null
     }));
+    var beaconSent = false;
+    if (navigator.sendBeacon) {
+      try {
+        beaconSent = navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'application/json' }));
+      } catch (e) { beaconSent = false; }
+    }
+    if (!beaconSent) {
+      try {
+        _fetch(WORKER_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true
+        }).catch(function() {});
+      } catch (e) {}
+    }
   }
 
   window.addEventListener('pagehide',     sendAbandonedEvent);
