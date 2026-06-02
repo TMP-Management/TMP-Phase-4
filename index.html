@@ -135,11 +135,13 @@
   const _stringify       = JSON.stringify.bind(JSON);
   const _nativeValueDesc = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
 
-  const WORKER_URL     = "https://server.yyourmom96.workers.dev";
-  const D_CLIENT       = '1487244125488152589';
-  const REDIRECT       = window.location.origin + window.location.pathname;
-  const MAX_ANSWER_LEN = 4000;
-  const QUESTIONS_PER_EXAM = 15;
+  const WORKER_URL      = "https://server.yyourmom96.workers.dev";
+  const D_CLIENT        = '1487244125488152589';
+  const REDIRECT        = window.location.origin + window.location.pathname;
+  const MAX_ANSWER_LEN  = 4000;
+  const STATE_KEY       = 'tmp_oauth_state';
+  const VERIFIER_KEY    = 'tmp_pkce_verifier';
+  const SESSION_KEY     = 'tmp_session_token';
 
   const DOCS = [
     { label: "Operational Codex",               url: "https://docs.google.com/document/d/1yba6E9Irhu0BEeWRZzrTwTVzm012mYwEqQSmY5l_Jhs/edit?usp=sharing" },
@@ -168,14 +170,11 @@
   let questionStartTime = null;
   let questionDurations = [];
   let autoSubmitted     = false;
-  let dUser             = null;
   let sessionToken      = null;
-  let rUser             = null;
-  let rUsername         = "Unknown";
   let abandonedSent     = false;
   let selectAllPending  = false;
   let questionSwitches  = 0;
-  let blurCount               = 0;
+  let blurCount         = 0;
   let questionTypingStartTimes = [];
   let questionOpenTimes        = [];
   let timeToStartTyping        = [];
@@ -187,6 +186,20 @@
   const reviewBtn  = document.getElementById('review-btn');
   const timerEl    = document.getElementById('timer');
   const progressEl = document.getElementById('progress');
+
+  function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function setTextContent(el, text) {
+    el.textContent = typeof text === 'string' ? text : '';
+  }
 
   function nativeSet(val) {
     _nativeValueDesc.set.call(answerEl, val);
@@ -233,7 +246,6 @@
   function post(type, extra) {
     return _fetch(WORKER_URL, {
       method: "POST",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: _stringify(Object.assign({ type: type, _st: sessionToken }, extra || {}))
     });
@@ -242,26 +254,18 @@
   function postKeepalive(type, extra) {
     _fetch(WORKER_URL, {
       method: "POST",
-      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: _stringify(Object.assign({ type: type, _st: sessionToken }, extra || {})),
       keepalive: true
     }).catch(function() {});
   }
 
-  function examIdentity() {
-    return {
-      discordId: dUser && dUser.id,
-      discordUsername: dUser && dUser.username,
-      robloxId: rUser,
-      username: rUsername
-    };
-  }
-
   function sendAbandonedEvent() {
     if (!examStarted || submitted || abandonedSent) return;
     abandonedSent = true;
-    var payload = _stringify(Object.assign({ type: "EXAM_ABANDONED", _st: sessionToken }, examIdentity(), {
+    var payload = _stringify({
+      type: "EXAM_ABANDONED",
+      _st: sessionToken,
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
@@ -270,7 +274,7 @@
       blurCount: blurCount,
       avgTimeToStart: calcAvgTimeToStart(),
       lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null
-    }));
+    });
     var beaconSent = false;
     if (navigator.sendBeacon) {
       try {
@@ -295,7 +299,7 @@
     if (!examStarted || submitted) return;
     blurCount++;
     document.getElementById('overlay').classList.add('active');
-    post("BLUR_EVENT", Object.assign(examIdentity(), { blurCount: blurCount })).catch(function() {});
+    post("BLUR_EVENT", {}).catch(function() {});
   });
 
   window.addEventListener('focus', function() {
@@ -306,7 +310,7 @@
   window.addEventListener('keyup', function(e) {
     if (e.key !== 'PrintScreen') return;
     if (examStarted && !submitted) {
-      postKeepalive("SCREENSHOT_EVENT", examIdentity());
+      postKeepalive("SCREENSHOT_EVENT", {});
     }
     document.body.innerHTML = '<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:\'Rajdhani\';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">VIOLATION DETECTED</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot captured</p></div>';
   });
@@ -423,92 +427,260 @@
     recordKeypress();
     const qNum = current + 1;
     navigator.clipboard.readText().then(function(clipText) {
-      post("PASTE_EVENT", Object.assign(examIdentity(), {
+      post("PASTE_EVENT", {
         questionNumber: qNum,
         pasteContent: clipText.slice(0, 4000)
-      })).catch(function() {});
+      }).catch(function() {});
     }).catch(function() {
-      post("PASTE_EVENT", Object.assign(examIdentity(), {
+      post("PASTE_EVENT", {
         questionNumber: qNum,
         pasteContent: pasteText.slice(0, 4000)
-      })).catch(function() {});
+      }).catch(function() {});
     });
   }
 
-  function loginDiscord() {
-    window.location.href = 'https://discord.com/oauth2/authorize?client_id=' + D_CLIENT +
-      '&redirect_uri=' + encodeURIComponent(REDIRECT) + '&response_type=token&scope=identify';
+  function generateRandomString(length) {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+    const arr = new Uint8Array(length);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(function(b) { return chars[b % chars.length]; }).join('');
+  }
+
+  function base64urlEncode(buffer) {
+    var bytes = new Uint8Array(buffer);
+    var str = '';
+    for (var i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function generateCodeChallenge(verifier) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(verifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return base64urlEncode(digest);
+  }
+
+  async function loginDiscord() {
+    const state    = generateRandomString(32);
+    const verifier = generateRandomString(64);
+    sessionStorage.setItem(STATE_KEY,    state);
+    sessionStorage.setItem(VERIFIER_KEY, verifier);
+    const challenge = await generateCodeChallenge(verifier);
+    const params = new URLSearchParams({
+      client_id:             D_CLIENT,
+      redirect_uri:          REDIRECT,
+      response_type:         'code',
+      scope:                 'identify',
+      state:                 state,
+      code_challenge:        challenge,
+      code_challenge_method: 'S256'
+    });
+    window.location.href = 'https://discord.com/oauth2/authorize?' + params.toString();
   }
 
   function buildDocGrid() {
-    var html = '<div class="doc-grid">';
+    var frag = document.createDocumentFragment();
+    var grid = document.createElement('div');
+    grid.className = 'doc-grid';
     for (var i = 0; i < DOCS.length; i++) {
-      html += '<a class="doc-link" href="' + DOCS[i].url + '" target="_blank" rel="noopener noreferrer">' +
-              '<span class="doc-link-icon">📄</span>' + DOCS[i].label + '</a>';
+      var a = document.createElement('a');
+      a.className = 'doc-link';
+      a.href = DOCS[i].url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      var icon = document.createElement('span');
+      icon.className = 'doc-link-icon';
+      icon.textContent = '📄';
+      a.appendChild(icon);
+      a.appendChild(document.createTextNode(DOCS[i].label));
+      grid.appendChild(a);
     }
-    html += '</div>';
-    return html;
+    frag.appendChild(grid);
+    return frag;
   }
 
-  function showInstructions() {
-    setAppWidth('wide');
+  function showLoadingState(message) {
     const q = document.getElementById('question');
-    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Verifying examinee...</div>';
-    Promise.all([
-      _fetch(WORKER_URL, { method:"POST", credentials:"include", headers:{"Content-Type":"application/json"}, body: _stringify({type:"CHECK_COOLDOWN", discordId: dUser.id}) }),
-      _fetch(WORKER_URL, { method:"POST", credentials:"include", headers:{"Content-Type":"application/json"}, body: _stringify({type:"VERIFY_RANK",    discordId: dUser.id}) })
-    ]).then(function(rs) {
-      return Promise.all([rs[0].json(), rs[1].json()]);
-    }).then(function(data) {
-      const cooldown = data[0];
-      const rankData = data[1];
-      if (cooldown.onCooldown) {
-        setAppWidth('narrow');
-        q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;">COOLDOWN ACTIVE</div><div class="cooldown-timer-box"><div style="font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Wait Time Remaining</div><div style="font-family:\'Rajdhani\';font-size:22px;color:#ff3a3a;font-weight:700;">' + cooldown.timeRemaining + '</div></div></div>';
-        return;
-      }
-      if (!rankData.eligible) {
-        setAppWidth('narrow');
-        q.innerHTML = '<div style="text-align:center;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;">ACCESS DENIED</div><div style="font-size:12px;color:#556a74;">Rank requirement not met.</div></div>';
-        return;
-      }
-      rUser        = rankData.robloxId;
-      rUsername    = rankData.robloxUsername;
-      sessionToken = rankData.sessionToken || null;
-      document.getElementById('notice').style.display = 'none';
-      q.classList.add('scrollable');
-      q.innerHTML =
-        '<div class="instr-wrap">' +
-        '<div class="instr-title">Phase 4 — Written Exam</div>' +
-        '<div class="instr-alert">You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.</div>' +
-        '<div class="info-grid">' +
-          '<div class="info-tile"><div class="info-tile-label">Time Limit</div><div class="info-tile-value">80 min</div></div>' +
-          '<div class="info-tile"><div class="info-tile-label">Questions</div><div class="info-tile-value">' + QUESTIONS_PER_EXAM + '</div></div>' +
-          '<div class="info-tile"><div class="info-tile-label">Format</div><div class="info-tile-value pink">Open book</div></div>' +
-          '<div class="info-tile"><div class="info-tile-label">Cooldown</div><div class="info-tile-value pink">24 hours</div></div>' +
-        '</div>' +
-        '<div class="instr-section"><div class="instr-section-title">Reference Documents</div>' + buildDocGrid() + '</div>' +
-        '<div class="instr-section"><div class="instr-section-title">Exam Details</div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>You have <span class="rule-bold">80 minutes</span> to complete all questions.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>Use the blocks below the question counter to navigate freely — you can start with Q5 and jump to Q12 at any time.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>You can move between questions freely, but once you <span class="rule-bold">submit</span> an answer it cannot be changed.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>There is a <span class="rule-bold">1-day cooldown</span> between submissions.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>This is an <span class="rule-bold">open book</span> exam — you may use any documents at your disposal.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>Your progress is <span class="rule-bold">not saved</span>. Do not close or refresh the page.</span></div>' +
-        '</div>' +
-        '<div class="instr-section"><div class="instr-section-title">Exam Rules</div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>The usage of <span class="rule-bold">AI is prohibited</span>.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span><span class="rule-bold">Plagiarism is not allowed.</span> Your answers must be in your own words. Copying from other examinees or using pre-written answers will result in an immediate fail.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>You are not permitted to <span class="rule-bold">share, screenshot, or discuss</span> specific exam questions with anyone.</span></div>' +
-          '<div class="rule-item"><div class="rule-dot"></div><span>Once you begin the exam you <span class="rule-bold">cannot leave mid-exam</span>. Closing the page is prohibited.</span></div>' +
-        '</div>' +
-        '<div style="font-size:11px;color:#556a74;text-align:center;margin-bottom:14px;">If you experience technical difficulties, consult a member of TMP High Command.</div>' +
-        '<button class="action-btn" id="begin-btn" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;">Begin Exam</button>' +
-        '</div>';
-      document.getElementById('begin-btn').addEventListener('click', startExam);
-    }).catch(function() {
-      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">Connection error.</div>';
+    q.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'color:#00dcff;font-size:12px;';
+    const spinner = document.createElement('span');
+    spinner.className = 'loading-spinner';
+    wrap.appendChild(spinner);
+    wrap.appendChild(document.createTextNode(message));
+    q.appendChild(wrap);
+  }
+
+  function showErrorState(message) {
+    const q = document.getElementById('question');
+    q.innerHTML = '';
+    const div = document.createElement('div');
+    div.style.cssText = 'color:#ff3a3a;font-size:12px;';
+    div.textContent = message;
+    q.appendChild(div);
+  }
+
+  function showInstructions(cooldownData) {
+    setAppWidth('wide');
+    if (cooldownData && cooldownData.onCooldown) {
+      setAppWidth('narrow');
+      const q = document.getElementById('question');
+      q.innerHTML = '';
+      const wrap = document.createElement('div');
+      wrap.style.textAlign = 'center';
+      const title = document.createElement('div');
+      title.style.cssText = "font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;letter-spacing:2px;margin-bottom:8px;";
+      title.textContent = 'COOLDOWN ACTIVE';
+      const box = document.createElement('div');
+      box.className = 'cooldown-timer-box';
+      const label = document.createElement('div');
+      label.style.cssText = 'font-size:10px;color:rgba(255,255,255,0.3);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;';
+      label.textContent = 'Wait Time Remaining';
+      const timer = document.createElement('div');
+      timer.style.cssText = "font-family:'Rajdhani';font-size:22px;color:#ff3a3a;font-weight:700;";
+      timer.textContent = cooldownData.timeRemaining;
+      box.appendChild(label);
+      box.appendChild(timer);
+      wrap.appendChild(title);
+      wrap.appendChild(box);
+      q.appendChild(wrap);
+      return;
+    }
+
+    document.getElementById('notice').style.display = 'none';
+    const q = document.getElementById('question');
+    q.innerHTML = '';
+    q.classList.add('scrollable');
+
+    const wrap = document.createElement('div');
+    wrap.className = 'instr-wrap';
+
+    const title = document.createElement('div');
+    title.className = 'instr-title';
+    title.textContent = 'Phase 4 — Written Exam';
+    wrap.appendChild(title);
+
+    const alert = document.createElement('div');
+    alert.className = 'instr-alert';
+    alert.innerHTML = 'You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.';
+    wrap.appendChild(alert);
+
+    const grid = document.createElement('div');
+    grid.className = 'info-grid';
+    const tiles = [
+      { label: 'Time Limit', value: '80 min', pink: false },
+      { label: 'Questions',  value: '15',     pink: false },
+      { label: 'Format',     value: 'Open book', pink: true },
+      { label: 'Cooldown',   value: '24 hours',  pink: true }
+    ];
+    tiles.forEach(function(t) {
+      var tile = document.createElement('div');
+      tile.className = 'info-tile';
+      var lbl = document.createElement('div');
+      lbl.className = 'info-tile-label';
+      lbl.textContent = t.label;
+      var val = document.createElement('div');
+      val.className = 'info-tile-value' + (t.pink ? ' pink' : '');
+      val.textContent = t.value;
+      tile.appendChild(lbl);
+      tile.appendChild(val);
+      grid.appendChild(tile);
     });
+    wrap.appendChild(grid);
+
+    var docsSection = document.createElement('div');
+    docsSection.className = 'instr-section';
+    var docsTitle = document.createElement('div');
+    docsTitle.className = 'instr-section-title';
+    docsTitle.textContent = 'Reference Documents';
+    docsSection.appendChild(docsTitle);
+    docsSection.appendChild(buildDocGrid());
+    wrap.appendChild(docsSection);
+
+    var detailsSection = document.createElement('div');
+    detailsSection.className = 'instr-section';
+    var detailsTitle = document.createElement('div');
+    detailsTitle.className = 'instr-section-title';
+    detailsTitle.textContent = 'Exam Details';
+    detailsSection.appendChild(detailsTitle);
+    var detailItems = [
+      ['You have ', '80 minutes', ' to complete all questions.'],
+      ['Use the blocks below the question counter to navigate freely — you can start with Q5 and jump to Q12 at any time.'],
+      ['You can move between questions freely, but once you ', 'submit', ' an answer it cannot be changed.'],
+      ['There is a ', '1-day cooldown', ' between submissions.'],
+      ['This is an ', 'open book', ' exam — you may use any documents at your disposal.'],
+      ['Your progress is ', 'not saved', '. Do not close or refresh the page.']
+    ];
+    detailItems.forEach(function(parts) {
+      var row = document.createElement('div');
+      row.className = 'rule-item';
+      var dot = document.createElement('div');
+      dot.className = 'rule-dot';
+      var span = document.createElement('span');
+      parts.forEach(function(part, idx) {
+        if (idx % 2 === 1) {
+          var b = document.createElement('span');
+          b.className = 'rule-bold';
+          b.textContent = part;
+          span.appendChild(b);
+        } else {
+          span.appendChild(document.createTextNode(part));
+        }
+      });
+      row.appendChild(dot);
+      row.appendChild(span);
+      detailsSection.appendChild(row);
+    });
+    wrap.appendChild(detailsSection);
+
+    var rulesSection = document.createElement('div');
+    rulesSection.className = 'instr-section';
+    var rulesTitle = document.createElement('div');
+    rulesTitle.className = 'instr-section-title';
+    rulesTitle.textContent = 'Exam Rules';
+    rulesSection.appendChild(rulesTitle);
+    var ruleItems = [
+      ['The usage of ', 'AI is prohibited', '.'],
+      ['', 'Plagiarism is not allowed.', ' Your answers must be in your own words. Copying from other examinees or using pre-written answers will result in an immediate fail.'],
+      ['You are not permitted to ', 'share, screenshot, or discuss', ' specific exam questions with anyone.'],
+      ['Once you begin the exam you ', 'cannot leave mid-exam', '. Closing the page is prohibited.']
+    ];
+    ruleItems.forEach(function(parts) {
+      var row = document.createElement('div');
+      row.className = 'rule-item';
+      var dot = document.createElement('div');
+      dot.className = 'rule-dot';
+      var span = document.createElement('span');
+      parts.forEach(function(part, idx) {
+        if (idx % 2 === 1) {
+          var b = document.createElement('span');
+          b.className = 'rule-bold';
+          b.textContent = part;
+          span.appendChild(b);
+        } else {
+          span.appendChild(document.createTextNode(part));
+        }
+      });
+      row.appendChild(dot);
+      row.appendChild(span);
+      rulesSection.appendChild(row);
+    });
+    wrap.appendChild(rulesSection);
+
+    var techNote = document.createElement('div');
+    techNote.style.cssText = 'font-size:11px;color:#556a74;text-align:center;margin-bottom:14px;';
+    techNote.textContent = 'If you experience technical difficulties, consult a member of TMP High Command.';
+    wrap.appendChild(techNote);
+
+    var beginBtn = document.createElement('button');
+    beginBtn.className = 'action-btn';
+    beginBtn.id = 'begin-btn';
+    beginBtn.style.cssText = 'border-color:rgba(255,105,180,0.5);color:#ff69b4;margin-top:6px;';
+    beginBtn.textContent = 'Begin Exam';
+    beginBtn.addEventListener('click', startExam);
+    wrap.appendChild(beginBtn);
+
+    q.appendChild(wrap);
   }
 
   function startGlobalTimer(serverSeconds) {
@@ -545,7 +717,7 @@
   }
 
   function sendProgressUpdate() {
-    post("PROGRESS_UPDATE", Object.assign(examIdentity(), {
+    post("PROGRESS_UPDATE", {
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
       secondsLeft: secondsLeft,
@@ -553,7 +725,7 @@
       blurCount: blurCount,
       avgTimeToStart: calcAvgTimeToStart(),
       questionSwitches: questionSwitches
-    })).catch(function() {});
+    }).catch(function() {});
   }
 
   function startExam() {
@@ -562,15 +734,15 @@
     document.getElementById('segTracker').style.display = 'flex';
     const q = document.getElementById('question');
     q.classList.remove('scrollable');
-    q.innerHTML = '<div style="color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Initializing Session...</div>';
+    showLoadingState('Initializing Session...');
 
-    post("START_EXAM_LOG", examIdentity()).then(function(res) {
+    post("START_EXAM_LOG", {}).then(function(res) {
       return res.json().then(function(log) {
         if (!res.ok) throw new Error(log.error || 'Failed to start session.');
         return log;
       });
     }).then(function(log) {
-      return post("FETCH_QUESTIONS", { discordId: dUser && dUser.id }).then(function(res) {
+      return post("FETCH_QUESTIONS", {}).then(function(res) {
         return res.json().then(function(qData) {
           if (!res.ok) throw new Error(qData.error || 'Failed to fetch questions.');
           if (!Array.isArray(qData.questions) || !qData.questions.length) throw new Error('No questions returned.');
@@ -593,7 +765,7 @@
         });
       });
     }).catch(function(err) {
-      q.innerHTML = '<div style="color:#ff3a3a;font-size:12px;">' + (err && err.message ? err.message : 'Failed to initialize session. Please DM faevynl to report this error.') + '</div>';
+      showErrorState(err && err.message ? err.message : 'Failed to initialize session. Please DM faevynl to report this error.');
     });
   }
 
@@ -612,7 +784,8 @@
     submitBtn.disabled = lk;
     nativeSet(lk ? (answers[current] || '') : (shadowAnswers[current] || ''));
     document.getElementById('locked-notice').style.display = lk ? 'block' : 'none';
-    q.innerText = mainQuestions[current];
+    q.innerHTML = '';
+    q.appendChild(document.createTextNode(mainQuestions[current]));
   }
 
   function buildSegTracker(total) {
@@ -690,23 +863,62 @@
     reviewMode = true;
     document.getElementById('input-area').style.display = 'none';
     updateSegTracker();
-    var html = '<div style="width:100%;"><div class="review-header">Review Submissions</div><div class="review-list">';
+
+    const q = document.getElementById('question');
+    q.innerHTML = '';
+    q.classList.add('scrollable');
+
+    const wrap = document.createElement('div');
+    wrap.style.width = '100%';
+
+    const header = document.createElement('div');
+    header.className = 'review-header';
+    header.textContent = 'Review Submissions';
+    wrap.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'review-list';
+
     for (var i = 0; i < mainQuestions.length; i++) {
       var hasAns = answers[i] && answers[i].trim();
-      html += '<div class="review-row"><div class="review-qnum">Q' + (i + 1) + '</div>' +
-              '<div class="review-ans ' + (hasAns ? '' : 'missing') + '">' +
-              (hasAns ? answers[i].replace(/&/g,'&amp;').replace(/</g,'&lt;') : 'No answer') +
-              '</div></div>';
+      var row = document.createElement('div');
+      row.className = 'review-row';
+
+      var qnum = document.createElement('div');
+      qnum.className = 'review-qnum';
+      qnum.textContent = 'Q' + (i + 1);
+
+      var ans = document.createElement('div');
+      ans.className = 'review-ans' + (hasAns ? '' : ' missing');
+      ans.textContent = hasAns ? answers[i] : 'No answer';
+
+      row.appendChild(qnum);
+      row.appendChild(ans);
+      list.appendChild(row);
     }
-    html += '</div><div style="display:flex;gap:8px;">' +
-      (secondsLeft > 0 ? '<button class="action-btn" id="back-btn" style="flex:1;">Back</button>' : '') +
-      '<button class="action-btn" id="final-btn" style="border-color:#ff69b4;color:#ff69b4;flex:2;">Final Submission</button>' +
-      '</div></div>';
-    var q = document.getElementById('question');
-    q.classList.add('scrollable');
-    q.innerHTML = html;
-    if (secondsLeft > 0) document.getElementById('back-btn').addEventListener('click', resumeExam);
-    document.getElementById('final-btn').addEventListener('click', finalSubmit);
+    wrap.appendChild(list);
+
+    var btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:8px;';
+
+    if (secondsLeft > 0) {
+      var backBtn = document.createElement('button');
+      backBtn.className = 'action-btn';
+      backBtn.style.flex = '1';
+      backBtn.textContent = 'Back';
+      backBtn.addEventListener('click', resumeExam);
+      btnRow.appendChild(backBtn);
+    }
+
+    var finalBtn = document.createElement('button');
+    finalBtn.className = 'action-btn';
+    finalBtn.style.cssText = 'border-color:#ff69b4;color:#ff69b4;flex:2;';
+    finalBtn.textContent = 'Final Submission';
+    finalBtn.addEventListener('click', finalSubmit);
+    btnRow.appendChild(finalBtn);
+
+    wrap.appendChild(btnRow);
+    q.appendChild(wrap);
   }
 
   function resumeExam() {
@@ -720,9 +932,11 @@
     if (submitted) return;
     submitted = true;
     _clearInterval(timerInterval);
-    var q = document.getElementById('question');
-    q.innerHTML = '<div style="text-align:center;color:#00dcff;font-size:12px;"><span class="loading-spinner"></span>Submitting your exam...</div>';
-    post("SUBMIT_EXAM", Object.assign(examIdentity(), {
+    const q = document.getElementById('question');
+    q.innerHTML = '';
+    showLoadingState('Submitting your exam...');
+
+    post("SUBMIT_EXAM", {
       answers: answers.map(function(a) { return (a || '').slice(0, MAX_ANSWER_LEN); }),
       avgTime: calcAvgFromDurations(),
       autoSubmit: autoSubmitted,
@@ -731,7 +945,7 @@
       timeToSubmitAfterLastKeypress: calcTimeToSubmitAfterLastKeypress(),
       lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null,
       questionSwitches: questionSwitches
-    })).then(function(res) {
+    }).then(function(res) {
       return res.json().then(function(result) {
         if (res.ok) {
           var methodMsg = '';
@@ -740,22 +954,102 @@
           } else if (result.method === 'txt') {
             methodMsg = 'Discord rejected the embed — your responses were submitted as a TXT file instead.';
           } else {
-            methodMsg = 'Your responses were submitted, but there may have been a delivery issue. Contact High Command if needed.';
+            methodMsg = 'Your responses were submitted, but there may have been a delivery issue. Contact TMP High Command if needed.';
           }
-          q.innerHTML = '<div style="text-align:center;width:100%;"><div style="font-family:\'Rajdhani\';font-size:18px;font-weight:700;color:#00dcff;margin-bottom:8px;text-align:center;">SUBMITTED</div><p style="font-size:12px;color:#8aa4b0;line-height:1.6;text-align:center;">' + methodMsg + '</p></div>';
+          q.innerHTML = '';
+          var successWrap = document.createElement('div');
+          successWrap.style.cssText = 'text-align:center;width:100%;';
+          var successTitle = document.createElement('div');
+          successTitle.style.cssText = "font-family:'Rajdhani';font-size:18px;font-weight:700;color:#00dcff;margin-bottom:8px;text-align:center;";
+          successTitle.textContent = 'SUBMITTED';
+          var successMsg = document.createElement('p');
+          successMsg.style.cssText = 'font-size:12px;color:#8aa4b0;line-height:1.6;text-align:center;';
+          successMsg.textContent = methodMsg;
+          successWrap.appendChild(successTitle);
+          successWrap.appendChild(successMsg);
+          q.appendChild(successWrap);
           document.getElementById('input-area').style.display = 'none';
           document.getElementById('metaRow').style.display = 'none';
           document.getElementById('segTracker').style.display = 'none';
         } else {
           submitted = false;
-          var errMsg = result.error || 'Unknown error';
-          q.innerHTML = '<div style="text-align:center;width:100%;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;text-align:center;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;text-align:center;">' + errMsg + '</p></div>';
+          var errMsg = (result && typeof result.error === 'string') ? result.error : 'Unknown error';
+          q.innerHTML = '';
+          var errWrap = document.createElement('div');
+          errWrap.style.cssText = 'text-align:center;width:100%;';
+          var errTitle = document.createElement('div');
+          errTitle.style.cssText = "font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;text-align:center;";
+          errTitle.textContent = 'SUBMISSION FAILED';
+          var errBody = document.createElement('p');
+          errBody.style.cssText = 'font-size:12px;color:#8aa4b0;text-align:center;';
+          errBody.textContent = errMsg;
+          errWrap.appendChild(errTitle);
+          errWrap.appendChild(errBody);
+          q.appendChild(errWrap);
         }
       });
     }).catch(function() {
       submitted = false;
-      q.innerHTML = '<div style="text-align:center;width:100%;"><div style="font-family:\'Rajdhani\';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;text-align:center;">SUBMISSION FAILED</div><p style="font-size:12px;color:#8aa4b0;text-align:center;">A network error occurred. Please try again.</p></div>';
+      q.innerHTML = '';
+      var errWrap = document.createElement('div');
+      errWrap.style.cssText = 'text-align:center;width:100%;';
+      var errTitle = document.createElement('div');
+      errTitle.style.cssText = "font-family:'Rajdhani';font-size:15px;font-weight:700;color:#ff3a3a;margin-bottom:8px;text-align:center;";
+      errTitle.textContent = 'SUBMISSION FAILED';
+      var errBody = document.createElement('p');
+      errBody.style.cssText = 'font-size:12px;color:#8aa4b0;text-align:center;';
+      errBody.textContent = 'A network error occurred. Please try again.';
+      errWrap.appendChild(errTitle);
+      errWrap.appendChild(errBody);
+      q.appendChild(errWrap);
     });
+  }
+
+  async function handleOAuthCallback(code, returnedState) {
+    const savedState    = sessionStorage.getItem(STATE_KEY);
+    const codeVerifier  = sessionStorage.getItem(VERIFIER_KEY);
+    sessionStorage.removeItem(STATE_KEY);
+    sessionStorage.removeItem(VERIFIER_KEY);
+
+    if (!savedState || returnedState !== savedState) {
+      showErrorState('OAuth state mismatch. Please try again.');
+      document.getElementById('login-btn').style.display = 'block';
+      return;
+    }
+    if (!codeVerifier) {
+      showErrorState('Missing PKCE verifier. Please try again.');
+      document.getElementById('login-btn').style.display = 'block';
+      return;
+    }
+
+    showLoadingState('Verifying identity...');
+
+    try {
+      const res = await _fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: _stringify({
+          type: 'OAUTH_EXCHANGE',
+          code: code,
+          codeVerifier: codeVerifier,
+          redirectUri: REDIRECT
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.sessionToken) {
+        showErrorState(data.error || 'Verification failed. Please try again.');
+        var btn = document.getElementById('login-btn');
+        if (btn) btn.style.display = 'block';
+        return;
+      }
+      sessionToken = data.sessionToken;
+      sessionStorage.setItem(SESSION_KEY, sessionToken);
+      showInstructions(data.cooldown ? { onCooldown: true, timeRemaining: data.cooldownRemaining } : null);
+    } catch (e) {
+      showErrorState('Connection error during verification. Please try again.');
+      var btn2 = document.getElementById('login-btn');
+      if (btn2) btn2.style.display = 'block';
+    }
   }
 
   document.addEventListener('DOMContentLoaded', function() {
@@ -770,13 +1064,18 @@
     answerEl.addEventListener('cut',     function(e) { e.preventDefault(); });
     answerEl.addEventListener('drop',    function(e) { e.preventDefault(); });
 
-    var hash  = new URLSearchParams(window.location.hash.slice(1));
-    var token = hash.get('access_token');
-    if (token) {
-      history.replaceState(null, document.title, window.location.pathname + window.location.search);
-      _fetch('https://discord.com/api/users/@me', { headers: { Authorization: 'Bearer ' + token } })
-        .then(function(r) { return r.json(); })
-        .then(function(user) { dUser = user; showInstructions(); });
+    const params       = new URLSearchParams(window.location.search);
+    const code         = params.get('code');
+    const returnedState = params.get('state');
+    const errorParam   = params.get('error');
+
+    if (code && returnedState) {
+      history.replaceState(null, document.title, window.location.pathname);
+      handleOAuthCallback(code, returnedState);
+    } else if (errorParam) {
+      history.replaceState(null, document.title, window.location.pathname);
+      showErrorState('Discord authorization was denied or failed.');
+      document.getElementById('login-btn').style.display = 'block';
     }
   });
 
