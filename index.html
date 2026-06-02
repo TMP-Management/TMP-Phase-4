@@ -121,7 +121,7 @@
         <button class="action-btn" id="submit-btn" style="border-color:rgba(255,105,180,0.5);color:#ff69b4;flex:2;">Submit & Next</button>
       </div>
     </div>
-    <div class="credit-text">CREATED BY FAEVYNL</div>
+    <div class="credit-text">SQUID GAME INTERNATIONAL</div>
   </div>
 </div>
 <script>
@@ -258,7 +258,7 @@
     };
   }
 
-function sendAbandonedEvent() {
+  function sendAbandonedEvent() {
     if (!examStarted || submitted || abandonedSent) return;
     abandonedSent = true;
     var payload = _stringify(Object.assign({ type: "EXAM_ABANDONED", _st: sessionToken }, examIdentity(), {
@@ -289,7 +289,6 @@ function sendAbandonedEvent() {
     }
   }
 
-  window.addEventListener('pagehide',     sendAbandonedEvent);
   window.addEventListener('beforeunload', sendAbandonedEvent);
 
   window.addEventListener('blur', function() {
