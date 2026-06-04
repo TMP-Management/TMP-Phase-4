@@ -81,10 +81,6 @@
   .cooldown-timer-box { background:rgba(255,58,58,0.05); border:1px solid rgba(255,58,58,0.2); padding:15px; border-radius:10px; margin-top: 10px; }
   .instr-alert { background: rgba(255,105,180,0.06); border: 1px solid rgba(255,105,180,0.2); border-radius: 9px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #c8a0b0; line-height: 1.6; text-align: center; }
   .instr-alert strong { color: #ff69b4; }
-  .instr-warning { background: rgba(255,58,58,0.08); border: 2px solid rgba(255,58,58,0.5); border-radius: 11px; padding: 14px 16px; margin-bottom: 16px; text-align: center; }
-  .instr-warning-title { font-family: 'Rajdhani', sans-serif; font-size: 15px; font-weight: 700; color: #ff3a3a; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 8px; text-shadow: 0 0 12px rgba(255,58,58,0.4); }
-  .instr-warning-body { font-size: 12px; color: #d08080; line-height: 1.7; }
-  .instr-warning-body strong { color: #ff6060; }
 </style>
 </head>
 <body oncontextmenu="return false;">
@@ -162,20 +158,20 @@
   let answers           = [];
   let shadowAnswers     = [];
   let lockedQuestions   = [];
-  let serverStartEpoch  = null;
-  let serverDurationMs  = 4800000;
-  let timerStopped      = false;
+  let timerInterval     = null;
+  let secondsLeft       = 4800;
+  let serverSecondsAtStart = 4800;
+  let timerStartEpoch   = null;
   let examStarted       = false;
   let mainQuestions     = [];
   let reviewMode        = false;
   let submitted         = false;
-  let lastProgressSent  = 0;
+  let lastProgressSent  = null;
   let questionStartTime = null;
   let questionDurations = [];
   let autoSubmitted     = false;
   let sessionToken      = null;
   let abandonedSent     = false;
-  let unloading         = false;
   let selectAllPending  = false;
   let questionSwitches  = 0;
   let blurCount         = 0;
@@ -190,13 +186,19 @@
   const reviewBtn  = document.getElementById('review-btn');
   const timerEl    = document.getElementById('timer');
   const progressEl = document.getElementById('progress');
-  const overlayEl  = document.getElementById('overlay');
 
-  function getSecondsLeft() {
-    if (serverStartEpoch === null) return 0;
-    const elapsed = Math.floor((_dateNow() - serverStartEpoch) / 1000);
-    const totalSecs = Math.floor(serverDurationMs / 1000);
-    return Math.max(0, totalSecs - elapsed);
+  function escapeHtml(str) {
+    if (typeof str !== 'string') return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function setTextContent(el, text) {
+    el.textContent = typeof text === 'string' ? text : '';
   }
 
   function nativeSet(val) {
@@ -258,16 +260,15 @@
     }).catch(function() {});
   }
 
-function sendAbandonedEvent() {
-  if (!examStarted || submitted || abandonedSent || !mainQuestions.length) return;
-  abandonedSent = true;
-    var sl = getSecondsLeft();
+  function sendAbandonedEvent() {
+    if (!examStarted || submitted || abandonedSent) return;
+    abandonedSent = true;
     var payload = _stringify({
       type: "EXAM_ABANDONED",
       _st: sessionToken,
       answeredCount: getAnsweredCount(),
       totalCount: mainQuestions.length,
-      secondsLeft: sl,
+      secondsLeft: secondsLeft,
       avgTime: calcAvgFromDurations(),
       questionSwitches: questionSwitches,
       blurCount: blurCount,
@@ -277,7 +278,7 @@ function sendAbandonedEvent() {
     var beaconSent = false;
     if (navigator.sendBeacon) {
       try {
-        beaconSent = navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'text/plain' }));
+        beaconSent = navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'application/json' }));
       } catch (e) { beaconSent = false; }
     }
     if (!beaconSent) {
@@ -292,21 +293,19 @@ function sendAbandonedEvent() {
     }
   }
 
-  window.addEventListener('beforeunload', function() {
-    unloading = true;
-    sendAbandonedEvent();
+  window.addEventListener('beforeunload', sendAbandonedEvent);
+
+  window.addEventListener('blur', function() {
+    if (!examStarted || submitted) return;
+    blurCount++;
+    document.getElementById('overlay').classList.add('active');
+    post("BLUR_EVENT", {}).catch(function() {});
   });
 
-  window.addEventListener('pagehide', function() {
-    unloading = true;
-    sendAbandonedEvent();
+  window.addEventListener('focus', function() {
+    if (!examStarted || submitted) return;
+    document.getElementById('overlay').classList.remove('active');
   });
-
-document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'hidden' && examStarted && !submitted) {
-    sendAbandonedEvent();
-  }
-});
 
   window.addEventListener('keyup', function(e) {
     if (e.key !== 'PrintScreen') return;
@@ -314,71 +313,7 @@ document.addEventListener('visibilitychange', function() {
       postKeepalive("SCREENSHOT_EVENT", {});
     }
     document.body.innerHTML = '<div style="background:#0a0a0a;color:#ff3a3a;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:\'Rajdhani\';text-align:center;"><h1 style="font-size:40px;letter-spacing:4px;">VIOLATION DETECTED</h1><p style="color:#00dcff;letter-spacing:2px;margin-top:12px;">screenshot captured</p></div>';
-  }, true);
-
-  (function startFocusPoller() {
-    var overlayShown = false;
-    _setInterval(function() {
-      if (unloading || !examStarted || submitted) {
-        if (overlayShown) {
-          overlayEl.classList.remove('active');
-          overlayShown = false;
-        }
-        return;
-      }
-      var hasFocus = document.hasFocus();
-      if (!hasFocus && !overlayShown) {
-        overlayShown = true;
-        blurCount++;
-        overlayEl.classList.add('active');
-        post("BLUR_EVENT", {}).catch(function() {});
-      } else if (hasFocus && overlayShown) {
-        overlayShown = false;
-        overlayEl.classList.remove('active');
-      }
-    }, 300);
-  })();
-
-  (function startTimerLoop() {
-    _setInterval(function() {
-      if (timerStopped || !examStarted || serverStartEpoch === null) return;
-
-      var remaining = getSecondsLeft();
-      var m = Math.floor(remaining / 60);
-      var s = remaining % 60;
-      timerEl.innerText = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
-
-      if (remaining <= 300) {
-        timerEl.classList.add('danger');
-      }
-
-      if (remaining <= 0 && !autoSubmitted) {
-        timerStopped  = true;
-        autoSubmitted = true;
-        finalSubmit();
-        return;
-      }
-
-      var now = _dateNow();
-      if (lastProgressSent === 0 || (now - lastProgressSent) >= 900000) {
-        lastProgressSent = now;
-        sendProgressUpdate();
-      }
-    }, 500);
-  })();
-
-  function sendProgressUpdate() {
-    var sl = getSecondsLeft();
-    post("PROGRESS_UPDATE", {
-      answeredCount: getAnsweredCount(),
-      totalCount: mainQuestions.length,
-      secondsLeft: sl,
-      avgTime: calcAvgFromDurations(),
-      blurCount: blurCount,
-      avgTimeToStart: calcAvgTimeToStart(),
-      questionSwitches: questionSwitches
-    }).catch(function() {});
-  }
+  });
 
   function recordKeypress() {
     if (!examStarted || submitted || lockedQuestions[current]) return;
@@ -625,18 +560,6 @@ document.addEventListener('visibilitychange', function() {
     title.textContent = 'Phase 4 — Written Exam';
     wrap.appendChild(title);
 
-    const warningBox = document.createElement('div');
-    warningBox.className = 'instr-warning';
-    const warningTitle = document.createElement('div');
-    warningTitle.className = 'instr-warning-title';
-    warningTitle.textContent = '⚠ DO NOT CLOSE THIS PAGE ⚠';
-    const warningBody = document.createElement('div');
-    warningBody.className = 'instr-warning-body';
-    warningBody.innerHTML = 'Closing or refreshing this page <strong>at any time during the exam</strong> will count as a <strong>failed attempt</strong> and will be permanently recorded on your attempt record. Your progress is <strong>not saved</strong>. You will not be able to recover your answers or session. <strong>Do not close this tab for any reason.</strong>';
-    warningBox.appendChild(warningTitle);
-    warningBox.appendChild(warningBody);
-    wrap.appendChild(warningBox);
-
     const alert = document.createElement('div');
     alert.className = 'instr-alert';
     alert.innerHTML = 'You only have <strong>2 attempts</strong> to pass this phase, so answer carefully. We wish you the best of luck.';
@@ -648,7 +571,7 @@ document.addEventListener('visibilitychange', function() {
       { label: 'Time Limit', value: '80 min', pink: false },
       { label: 'Questions',  value: '15',     pink: false },
       { label: 'Format',     value: 'Open book', pink: true },
-      { label: 'Cooldown',   value: '72 hours',  pink: true }
+      { label: 'Cooldown',   value: '24 hours',  pink: true }
     ];
     tiles.forEach(function(t) {
       var tile = document.createElement('div');
@@ -760,6 +683,51 @@ document.addEventListener('visibilitychange', function() {
     q.appendChild(wrap);
   }
 
+  function startGlobalTimer(serverSeconds) {
+    if (timerInterval) _clearInterval(timerInterval);
+    serverSecondsAtStart = serverSeconds;
+    secondsLeft          = serverSeconds;
+    timerStartEpoch      = _dateNow();
+    lastProgressSent     = _dateNow();
+    timerEl.style.display = 'block';
+
+    function tick() {
+      const elapsed   = Math.floor((_dateNow() - timerStartEpoch) / 1000);
+      const remaining = serverSecondsAtStart - elapsed;
+      if (remaining <= 0) {
+        _clearInterval(timerInterval);
+        secondsLeft   = 0;
+        autoSubmitted = true;
+        finalSubmit();
+        return;
+      }
+      secondsLeft = remaining;
+      const m = Math.floor(remaining / 60);
+      const s = remaining % 60;
+      timerEl.innerText = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
+      if (remaining <= 300) timerEl.classList.add('danger');
+      if ((_dateNow() - lastProgressSent) >= 900000) {
+        lastProgressSent = _dateNow();
+        sendProgressUpdate();
+      }
+    }
+
+    tick();
+    timerInterval = _setInterval(tick, 1000);
+  }
+
+  function sendProgressUpdate() {
+    post("PROGRESS_UPDATE", {
+      answeredCount: getAnsweredCount(),
+      totalCount: mainQuestions.length,
+      secondsLeft: secondsLeft,
+      avgTime: calcAvgFromDurations(),
+      blurCount: blurCount,
+      avgTimeToStart: calcAvgTimeToStart(),
+      questionSwitches: questionSwitches
+    }).catch(function() {});
+  }
+
   function startExam() {
     setAppWidth('narrow');
     document.getElementById('metaRow').style.display = 'flex';
@@ -769,14 +737,10 @@ document.addEventListener('visibilitychange', function() {
     showLoadingState('Initializing Session...');
 
     post("START_EXAM_LOG", {}).then(function(res) {
-  return res.json().then(function(log) {
-  if (!res.ok) throw new Error(log.error || 'Failed to start session.');
-  if (log.sessionToken) {
-    sessionToken = log.sessionToken;
-    sessionStorage.setItem(SESSION_KEY, sessionToken);
-  }
-  return log;
-});
+      return res.json().then(function(log) {
+        if (!res.ok) throw new Error(log.error || 'Failed to start session.');
+        return log;
+      });
     }).then(function(log) {
       return post("FETCH_QUESTIONS", {}).then(function(res) {
         return res.json().then(function(qData) {
@@ -792,15 +756,11 @@ document.addEventListener('visibilitychange', function() {
           timeToStartTyping        = new Array(mainQuestions.length).fill(0);
           questionSwitches         = 0;
           blurCount                = 0;
-          timerStopped             = false;
-          lastProgressSent         = _dateNow();
-          serverDurationMs         = 4800000;
-          serverStartEpoch         = _dateNow() - ((4800 - Math.min(log.secondsLeft, 4800)) * 1000);
           examStarted              = true;
-          timerEl.style.display    = 'block';
           buildSegTracker(mainQuestions.length);
           document.getElementById('input-area').style.display = 'flex';
           startMutationGuard();
+          startGlobalTimer(log.secondsLeft);
           loadQuestion();
         });
       });
@@ -941,8 +901,7 @@ document.addEventListener('visibilitychange', function() {
     var btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:8px;';
 
-    var sl = getSecondsLeft();
-    if (sl > 0) {
+    if (secondsLeft > 0) {
       var backBtn = document.createElement('button');
       backBtn.className = 'action-btn';
       backBtn.style.flex = '1';
@@ -971,8 +930,8 @@ document.addEventListener('visibilitychange', function() {
 
   function finalSubmit() {
     if (submitted) return;
-    submitted    = true;
-    timerStopped = true;
+    submitted = true;
+    _clearInterval(timerInterval);
     const q = document.getElementById('question');
     q.innerHTML = '';
     showLoadingState('Submitting your exam...');
@@ -1013,8 +972,7 @@ document.addEventListener('visibilitychange', function() {
           document.getElementById('metaRow').style.display = 'none';
           document.getElementById('segTracker').style.display = 'none';
         } else {
-          submitted    = false;
-          timerStopped = false;
+          submitted = false;
           var errMsg = (result && typeof result.error === 'string') ? result.error : 'Unknown error';
           q.innerHTML = '';
           var errWrap = document.createElement('div');
@@ -1031,8 +989,7 @@ document.addEventListener('visibilitychange', function() {
         }
       });
     }).catch(function() {
-      submitted    = false;
-      timerStopped = false;
+      submitted = false;
       q.innerHTML = '';
       var errWrap = document.createElement('div');
       errWrap.style.cssText = 'text-align:center;width:100%;';
@@ -1107,10 +1064,10 @@ document.addEventListener('visibilitychange', function() {
     answerEl.addEventListener('cut',     function(e) { e.preventDefault(); });
     answerEl.addEventListener('drop',    function(e) { e.preventDefault(); });
 
-    const params        = new URLSearchParams(window.location.search);
-    const code          = params.get('code');
+    const params       = new URLSearchParams(window.location.search);
+    const code         = params.get('code');
     const returnedState = params.get('state');
-    const errorParam    = params.get('error');
+    const errorParam   = params.get('error');
 
     if (code && returnedState) {
       history.replaceState(null, document.title, window.location.pathname);
