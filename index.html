@@ -174,6 +174,7 @@
   let autoSubmitted     = false;
   let sessionToken      = null;
   let abandonedSent     = false;
+  let unloading         = false;
   let selectAllPending  = false;
   let questionSwitches  = 0;
   let blurCount         = 0;
@@ -300,7 +301,10 @@
     }
   }
 
-  window.addEventListener('beforeunload', sendAbandonedEvent);
+  window.addEventListener('beforeunload', function() {
+    unloading = true;
+    sendAbandonedEvent();
+  });
 
   window.addEventListener('keyup', function(e) {
     if (e.key !== 'PrintScreen') return;
@@ -313,7 +317,7 @@
   (function startFocusPoller() {
     var overlayShown = false;
     _setInterval(function() {
-      if (!examStarted || submitted) {
+      if (unloading || !examStarted || submitted) {
         if (overlayShown) {
           overlayEl.classList.remove('active');
           overlayShown = false;
@@ -627,7 +631,7 @@
     warningTitle.textContent = '⚠ DO NOT CLOSE THIS PAGE ⚠';
     const warningBody = document.createElement('div');
     warningBody.className = 'instr-warning-body';
-    warningBody.innerHTML = 'Closing or refreshing this page <strong>at any time during the exam</strong> will count as a <strong>failed attempt</strong> and will be recorded on your attempt record. Your progress is <strong>not saved</strong>. You will not be able to recover your answers or session. <strong>Do not close this tab for any reason.</strong>';
+    warningBody.innerHTML = 'Closing, refreshing, or navigating away from this page <strong>at any time during the exam</strong> will count as a <strong>failed attempt</strong> and will be permanently recorded on your attempt record. Your progress is <strong>not saved</strong>. You will not be able to recover your answers or session. <strong>Do not close this tab for any reason.</strong>';
     warningBox.appendChild(warningTitle);
     warningBox.appendChild(warningBody);
     wrap.appendChild(warningBox);
