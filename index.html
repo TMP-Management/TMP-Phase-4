@@ -277,7 +277,7 @@
     var beaconSent = false;
     if (navigator.sendBeacon) {
       try {
-        beaconSent = navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'application/json' }));
+        beaconSent = navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'text/plain' }));
       } catch (e) { beaconSent = false; }
     }
     if (!beaconSent) {
@@ -295,6 +295,17 @@
   window.addEventListener('beforeunload', function() {
     unloading = true;
     sendAbandonedEvent();
+  });
+
+  window.addEventListener('pagehide', function() {
+    unloading = true;
+    sendAbandonedEvent();
+  });
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') {
+      sendAbandonedEvent();
+    }
   });
 
   window.addEventListener('keyup', function(e) {
@@ -778,7 +789,7 @@
           questionSwitches         = 0;
           blurCount                = 0;
           timerStopped             = false;
-          lastProgressSent         = 0;
+          lastProgressSent         = _dateNow();
           serverDurationMs         = 4800000;
           serverStartEpoch         = _dateNow() - ((4800 - Math.min(log.secondsLeft, 4800)) * 1000);
           examStarted              = true;
