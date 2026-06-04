@@ -737,10 +737,14 @@
     showLoadingState('Initializing Session...');
 
     post("START_EXAM_LOG", {}).then(function(res) {
-      return res.json().then(function(log) {
-        if (!res.ok) throw new Error(log.error || 'Failed to start session.');
-        return log;
-      });
+  return res.json().then(function(log) {
+    if (!res.ok) throw new Error(log.error || 'Failed to start session.');
+    if (log.sessionToken) {
+      sessionToken = log.sessionToken;
+      sessionStorage.setItem(SESSION_KEY, sessionToken);
+    }
+    return log;
+  });
     }).then(function(log) {
       return post("FETCH_QUESTIONS", {}).then(function(res) {
         return res.json().then(function(qData) {
