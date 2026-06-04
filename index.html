@@ -164,11 +164,12 @@
   let lockedQuestions   = [];
   let serverStartEpoch  = null;
   let serverDurationMs  = 4800000;
+  let timerStopped      = false;
   let examStarted       = false;
   let mainQuestions     = [];
   let reviewMode        = false;
   let submitted         = false;
-  let lastProgressSent  = null;
+  let lastProgressSent  = 0;
   let questionStartTime = null;
   let questionDurations = [];
   let autoSubmitted     = false;
@@ -196,16 +197,6 @@
     const elapsed = Math.floor((_dateNow() - serverStartEpoch) / 1000);
     const totalSecs = Math.floor(serverDurationMs / 1000);
     return Math.max(0, totalSecs - elapsed);
-  }
-
-  function escapeHtml(str) {
-    if (typeof str !== 'string') return '';
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 
   function nativeSet(val) {
@@ -338,11 +329,10 @@
   })();
 
   (function startTimerLoop() {
-    var lastAutoCheck = 0;
     _setInterval(function() {
-      if (!examStarted || submitted || serverStartEpoch === null) return;
-      var remaining = getSecondsLeft();
+      if (timerStopped || !examStarted || serverStartEpoch === null) return;
 
+      var remaining = getSecondsLeft();
       var m = Math.floor(remaining / 60);
       var s = remaining % 60;
       timerEl.innerText = '⏱ ' + m + ':' + (s < 10 ? '0' : '') + s;
@@ -352,6 +342,7 @@
       }
 
       if (remaining <= 0 && !autoSubmitted) {
+        timerStopped  = true;
         autoSubmitted = true;
         finalSubmit();
         return;
@@ -363,7 +354,6 @@
         sendProgressUpdate();
       }
     }, 500);
-    lastAutoCheck = _dateNow();
   })();
 
   function sendProgressUpdate() {
@@ -787,9 +777,10 @@
           timeToStartTyping        = new Array(mainQuestions.length).fill(0);
           questionSwitches         = 0;
           blurCount                = 0;
-          serverStartEpoch         = _dateNow() - ((Math.floor(log.secondsLeft) < 4800 ? (4800 - log.secondsLeft) : 0) * 1000);
-          serverDurationMs         = 4800000;
+          timerStopped             = false;
           lastProgressSent         = 0;
+          serverDurationMs         = 4800000;
+          serverStartEpoch         = _dateNow() - ((4800 - Math.min(log.secondsLeft, 4800)) * 1000);
           examStarted              = true;
           timerEl.style.display    = 'block';
           buildSegTracker(mainQuestions.length);
@@ -965,8 +956,8 @@
 
   function finalSubmit() {
     if (submitted) return;
-    submitted = true;
-    var sl = getSecondsLeft();
+    submitted    = true;
+    timerStopped = true;
     const q = document.getElementById('question');
     q.innerHTML = '';
     showLoadingState('Submitting your exam...');
@@ -1007,7 +998,8 @@
           document.getElementById('metaRow').style.display = 'none';
           document.getElementById('segTracker').style.display = 'none';
         } else {
-          submitted = false;
+          submitted    = false;
+          timerStopped = false;
           var errMsg = (result && typeof result.error === 'string') ? result.error : 'Unknown error';
           q.innerHTML = '';
           var errWrap = document.createElement('div');
@@ -1024,7 +1016,8 @@
         }
       });
     }).catch(function() {
-      submitted = false;
+      submitted    = false;
+      timerStopped = false;
       q.innerHTML = '';
       var errWrap = document.createElement('div');
       errWrap.style.cssText = 'text-align:center;width:100%;';
@@ -1099,10 +1092,10 @@
     answerEl.addEventListener('cut',     function(e) { e.preventDefault(); });
     answerEl.addEventListener('drop',    function(e) { e.preventDefault(); });
 
-    const params       = new URLSearchParams(window.location.search);
-    const code         = params.get('code');
+    const params        = new URLSearchParams(window.location.search);
+    const code          = params.get('code');
     const returnedState = params.get('state');
-    const errorParam   = params.get('error');
+    const errorParam    = params.get('error');
 
     if (code && returnedState) {
       history.replaceState(null, document.title, window.location.pathname);
