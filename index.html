@@ -261,37 +261,38 @@
   }
 
   function sendAbandonedEvent() {
-    if (!examStarted || submitted || abandonedSent) return;
-    abandonedSent = true;
-    var payload = _stringify({
-      type: "EXAM_ABANDONED",
-      _st: sessionToken,
-      answeredCount: getAnsweredCount(),
-      totalCount: mainQuestions.length,
-      secondsLeft: secondsLeft,
-      avgTime: calcAvgFromDurations(),
-      questionSwitches: questionSwitches,
-      blurCount: blurCount,
-      avgTimeToStart: calcAvgTimeToStart(),
-      lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null
+  if (!examStarted || submitted || abandonedSent) return;
+  abandonedSent = true;
+  var payload = _stringify({
+    type: "EXAM_ABANDONED",
+    _st: sessionToken,
+    answeredCount: getAnsweredCount(),
+    totalCount: mainQuestions.length,
+    secondsLeft: secondsLeft,
+    avgTime: calcAvgFromDurations(),
+    questionSwitches: questionSwitches,
+    blurCount: blurCount,
+    avgTimeToStart: calcAvgTimeToStart(),
+    lastKeypressQuestion: lastKeypressQuestion !== null ? lastKeypressQuestion + 1 : null
+  });
+
+  var sent = false;
+  try {
+    _fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true
     });
-    var beaconSent = false;
-    if (navigator.sendBeacon) {
-      try {
-        beaconSent = navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'application/json' }));
-      } catch (e) { beaconSent = false; }
-    }
-    if (!beaconSent) {
-      try {
-        _fetch(WORKER_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: payload,
-          keepalive: true
-        }).catch(function() {});
-      } catch (e) {}
-    }
+    sent = true;
+  } catch (e) { sent = false; }
+
+  if (!sent && navigator.sendBeacon) {
+    try {
+      navigator.sendBeacon(WORKER_URL, new Blob([payload], { type: 'text/plain' }));
+    } catch (e) {}
   }
+}
 
   window.addEventListener('beforeunload', sendAbandonedEvent);
 
