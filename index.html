@@ -160,8 +160,8 @@
   let shadowAnswers     = [];
   let lockedQuestions   = [];
   let timerInterval     = null;
-  let secondsLeft       = 4800;
-  let serverSecondsAtStart = 4800;
+  let secondsLeft       = 0;
+  let serverSecondsAtStart = 0;
   let timerStartEpoch   = null;
   let examStarted       = false;
   let mainQuestions     = [];
@@ -718,6 +718,13 @@
     timerInterval = _setInterval(tick, 1000);
   }
 
+  function resyncGlobalTimer(serverSeconds) {
+    if (typeof serverSeconds !== 'number') return;
+    serverSecondsAtStart = serverSeconds;
+    secondsLeft           = serverSeconds;
+    timerStartEpoch        = _dateNow();
+  }
+
   function sendProgressUpdate() {
     post("PROGRESS_UPDATE", {
       answeredCount: getAnsweredCount(),
@@ -727,6 +734,10 @@
       blurCount: blurCount,
       avgTimeToStart: calcAvgTimeToStart(),
       questionSwitches: questionSwitches
+    }).then(function(res) {
+      return res.json().then(function(result) {
+        if (result && typeof result.secondsLeft === 'number') resyncGlobalTimer(result.secondsLeft);
+      });
     }).catch(function() {});
   }
 
@@ -766,7 +777,8 @@
           buildSegTracker(mainQuestions.length);
           document.getElementById('input-area').style.display = 'flex';
           startMutationGuard();
-          startGlobalTimer(log.secondsLeft);
+          const authoritativeSeconds = typeof qData.secondsLeft === 'number' ? qData.secondsLeft : log.secondsLeft;
+          startGlobalTimer(authoritativeSeconds);
           loadQuestion();
         });
       });
@@ -956,9 +968,9 @@
         if (res.ok) {
           var methodMsg = '';
           if (result.method === 'embed') {
-            methodMsg = 'Your responses were submitted via embed.';
+            methodMsg = 'Your responses were submitted.';
           } else if (result.method === 'txt') {
-            methodMsg = 'Discord rejected the embed — your responses were submitted as a TXT file instead.';
+            methodMsg = 'Your responses were submitted.';
           } else {
             methodMsg = 'Your responses were submitted, but there may have been a delivery issue. Contact TMP High Command if needed.';
           }
